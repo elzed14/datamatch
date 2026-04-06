@@ -84,26 +84,26 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Navbar */}
-      <header className="border-b bg-card">
+      <header className="border-b bg-card shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Database className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">DataMatch Pro Advanced</h1>
+            <h1 className="text-xl font-bold text-foreground">DataMatch Pro Advanced</h1>
           </div>
-          <nav className="flex space-x-4">
-            <Button variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => setActiveTab('upload')}>
+          <nav className="flex space-x-2">
+            <Button variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => setActiveTab('upload')} className="font-medium">
               <UploadCloud className="mr-2 h-4 w-4" /> Import Excel
             </Button>
-            <Button variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => setActiveTab('powerquery')}>
+            <Button variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => setActiveTab('powerquery')} className="font-medium">
               <FileSpreadsheet className="mr-2 h-4 w-4" /> Power Query & Merge
             </Button>
-            <Button variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => setActiveTab('quality')}>
+            <Button variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => setActiveTab('quality')} className="font-medium">
               <Sparkles className="mr-2 h-4 w-4" /> Qualité & Analyse
             </Button>
-            <Button variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => setActiveTab('tcd')}>
+            <Button variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => setActiveTab('tcd')} className="font-medium">
               <LayoutDashboard className="mr-2 h-4 w-4" /> Pivot Tables (TCD)
             </Button>
-            <Button variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => setActiveTab('dashboard')}>
+            <Button variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => setActiveTab('dashboard')} className="font-medium">
               <LayoutDashboard className="mr-2 h-4 w-4" /> Global Dashboard
             </Button>
           </nav>
@@ -124,12 +124,12 @@ function App() {
               <CardContent>
                 {fileData ? (
                   <div className="space-y-4 text-left">
-                    <div className="flex justify-between items-center bg-muted/50 p-4 rounded-md">
-                  <div>
-                    <p className="font-medium text-sm">Fichier: <span className="font-normal text-muted-foreground">{fileData.originalName || fileData.filename}</span></p>
-                    <p className="font-medium text-sm">Feuille: <span className="font-normal text-muted-foreground">{fileData.sheetName || 'Sheet1'}</span></p>
-                    <p className="font-medium text-sm">Lignes totales: <span className="font-normal text-muted-foreground">{fileData.totalRows}</span></p>
-                    <p className="font-medium text-sm">Colonnes: <span className="font-normal text-muted-foreground">{fileData.columns?.length || 0}</span></p>
+                    <div className="flex justify-between items-center bg-muted p-4 rounded-md border">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-sm text-foreground">Fichier: <span className="font-normal text-muted-foreground">{fileData.originalName || fileData.filename}</span></p>
+                    <p className="font-semibold text-sm text-foreground">Feuille: <span className="font-normal text-muted-foreground">{fileData.sheetName || 'Sheet1'}</span></p>
+                    <p className="font-semibold text-sm text-foreground">Lignes totales: <span className="font-normal text-muted-foreground">{fileData.totalRows}</span></p>
+                    <p className="font-semibold text-sm text-foreground">Colonnes: <span className="font-normal text-muted-foreground">{fileData.columns?.length || 0}</span></p>
                   </div>
                       <Button onClick={() => setFileData(null)} variant="outline" size="sm">
                         Changer de fichier
@@ -147,8 +147,8 @@ function App() {
                     )}
                     
                     <div className="flex justify-between items-center">
-                      <h3 className="font-bold">Aperçu des données</h3>
-                      <Button onClick={() => setActiveTab('powerquery')}>Ouvrir Power Query</Button>
+                      <h3 className="font-bold text-foreground">Aperçu des données</h3>
+                      <Button onClick={() => setActiveTab('powerquery')} className="font-medium">Ouvrir Power Query</Button>
                     </div>
                     {fileData.columns && fileData.columns.length > 0 && (
                       <OptimizedTable
@@ -176,8 +176,8 @@ function App() {
         {activeTab === 'powerquery' && (
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex space-x-2 border-b pb-2">
-              <Button variant={powerQueryStep === 'mapping' ? 'secondary' : 'ghost'} onClick={() => setPowerQueryStep('mapping')}>Mapping & Colonnes</Button>
-              <Button variant={powerQueryStep === 'merge' ? 'secondary' : 'ghost'} onClick={() => setPowerQueryStep('merge')}>Jointure (Merge)</Button>
+              <Button variant={powerQueryStep === 'mapping' ? 'default' : 'ghost'} onClick={() => setPowerQueryStep('mapping')} className="font-medium">Mapping & Colonnes</Button>
+              <Button variant={powerQueryStep === 'merge' ? 'default' : 'ghost'} onClick={() => setPowerQueryStep('merge')} className="font-medium">Jointure (Merge)</Button>
             </div>
 
             {!fileData ? (
@@ -252,7 +252,7 @@ function App() {
         {activeTab === 'quality' && (
           <div className="max-w-6xl mx-auto space-y-8">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Qualité & Analyse Avancée</h2>
+              <h2 className="text-2xl font-bold mb-2 text-foreground">Qualité & Analyse Avancée</h2>
               <p className="text-muted-foreground mb-6">Outils d'analyse et d'amélioration de la qualité des données</p>
             </div>
 
