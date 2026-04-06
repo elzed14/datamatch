@@ -52,30 +52,12 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [popularSearches, setPopularSearches] = useState<SearchSuggestion[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const debounceTimer = useRef<number | undefined>()
-
-  useEffect(() => {
-    // Charger les recherches sauvegardées
-    const saved = localStorage.getItem('saved_searches')
-    if (saved) {
-      setSavedSearches(JSON.parse(saved))
-    }
-
-    // Charger les recherches récentes
-    const recent = localStorage.getItem('recent_searches')
-    if (recent) {
-      setRecentSearches(JSON.parse(recent))
-    }
-
-    // Charger les recherches populaires
-    loadPopularSearches()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const debounceTimer = useRef<number>(0)
 
   // Charger les recherches populaires depuis le serveur
   const loadPopularSearches = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/popular-searches', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/popular-searches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
@@ -88,6 +70,27 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
       console.error('Erreur chargement recherches populaires:', error)
     }
   }
+
+  useEffect(() => {
+    const loadData = async () => {
+      // Charger les recherches sauvegardées
+      const saved = localStorage.getItem('saved_searches')
+      if (saved) {
+        setSavedSearches(JSON.parse(saved))
+      }
+
+      // Charger les recherches récentes
+      const recent = localStorage.getItem('recent_searches')
+      if (recent) {
+        setRecentSearches(JSON.parse(recent))
+      }
+
+      // Charger les recherches populaires
+      await loadPopularSearches()
+    }
+    loadData()
+  }, [])
+
 
   // Générer des suggestions intelligentes
   const generateSuggestions = async (query: string) => {
