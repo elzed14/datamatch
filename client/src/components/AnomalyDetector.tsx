@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface AnomalyDetectorProps {
   filename: string
@@ -40,7 +41,7 @@ export function AnomalyDetector({ filename, columns }: AnomalyDetectorProps) {
 
     setIsAnalyzing(true)
     try {
-      const response = await fetch('http://localhost:3001/api/detect-anomalies', {
+      const response = await fetch(api.detectAnomalies, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, columns: selectedColumns })

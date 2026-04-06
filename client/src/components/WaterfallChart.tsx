@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { api } from '@/lib/api'
 
 interface WaterfallChartProps {
   filename: string
@@ -34,7 +35,7 @@ export function WaterfallChart({ filename, columns }: WaterfallChartProps) {
 
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:3001/api/waterfall', {
+      const response = await fetch(api.waterfall, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, categoryColumn, valueColumn })

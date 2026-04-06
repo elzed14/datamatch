@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Users, TrendingUp, Calendar } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface CohortAnalysisProps {
   filename: string
@@ -50,7 +51,7 @@ export function CohortAnalysis({ filename, columns }: CohortAnalysisProps) {
 
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:3001/api/cohort-analysis', {
+      const response = await fetch(api.cohortAnalysis, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

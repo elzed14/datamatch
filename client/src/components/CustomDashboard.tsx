@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Plus, X, Save, Layout, BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface Widget {
   id: string
@@ -59,7 +60,7 @@ export function CustomDashboard({ filename, columns }: CustomDashboardProps) {
 
     // Charger les données pour ce widget
     try {
-      const response = await fetch('http://localhost:3001/api/widget-data', {
+      const response = await fetch(api.widgetData, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -105,7 +106,7 @@ export function CustomDashboard({ filename, columns }: CustomDashboardProps) {
       setWidgets(loadedWidgets)
       // Recharger les données pour chaque widget
       loadedWidgets.forEach((widget: Widget) => {
-        fetch('http://localhost:3001/api/widget-data', {
+        fetch(api.widgetData, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

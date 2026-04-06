@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { api } from '@/lib/api'
 
 export interface ExportSheet {
   name: string
@@ -34,7 +35,7 @@ export function ExportButton({
     setError(null)
 
     try {
-      const res = await fetch('http://localhost:3001/api/export', {
+      const res = await fetch(api.export, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheets, filename }),

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sparkles, CheckCircle2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface DataCleanerProps {
   filename: string
@@ -108,7 +109,7 @@ export function DataCleaner({ filename, columns, onCleanComplete }: DataCleanerP
 
     setIsCleaning(true)
     try {
-      const response = await fetch('http://localhost:3001/api/clean-advanced', {
+      const response = await fetch(api.cleanAdvanced, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -265,7 +266,7 @@ export function DataCleaner({ filename, columns, onCleanComplete }: DataCleanerP
                 🔄 Nettoyer à nouveau
               </Button>
               <a
-                href={`http://localhost:3001/api/download/${cleanResult.filename}`}
+                href={api.download(cleanResult.filename)}
                 download={cleanResult.filename}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
               >

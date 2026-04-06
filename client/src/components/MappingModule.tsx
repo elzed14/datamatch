@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle2, Scissors, Type, ArrowUpCircle } from 'lucide-react'
+import { api } from '@/lib/api'
 
 export interface ColumnConfig {
   originalName: string
@@ -85,7 +86,7 @@ export function MappingModule({ filename, columns, previewData, onFileUpdate, on
 
   const fetchProfile = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/profile', {
+      const res = await fetch(api.profile, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
@@ -134,7 +135,7 @@ export function MappingModule({ filename, columns, previewData, onFileUpdate, on
   const handleClean = async (column: string | null, action: string, value?: any) => {
     setIsProcessing(true)
     try {
-      const res = await fetch('http://localhost:3001/api/clean', {
+      const res = await fetch(api.clean, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, column, action, value })

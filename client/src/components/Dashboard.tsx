@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ExportButton } from '@/components/ExportButton'
 import { GeoMap } from '@/components/GeoMap'
 import { Search, Sparkles, MapPin, BarChart3, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react'
+import { api } from '@/lib/api'
 
 const COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e', '#a78bfa', '#34d399', '#fb923c']
 
@@ -49,7 +50,7 @@ export function Dashboard({ columns, filename }: Omit<DashboardProps, 'originalN
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('http://localhost:3001/api/pivot', {
+      const res = await fetch(api.pivot, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

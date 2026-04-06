@@ -4,6 +4,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ExportButton } from '@/components/ExportButton'
+import { api } from '@/lib/api'
 
 type Zone = 'available' | 'rows' | 'cols' | 'vals'
 
@@ -198,7 +199,7 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
       .map(k => ({ field: k, agg: aggTypes[k] || 'SUM' }))
 
     try {
-      const res = await fetch('http://localhost:3001/api/pivot', {
+      const res = await fetch(api.pivot, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, rowFields, colFields, valFields })

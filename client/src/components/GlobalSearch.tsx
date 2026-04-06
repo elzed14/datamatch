@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Search, Filter, X, Download, Save, Clock, TrendingUp, Sparkles } from 'lucide-react'
 import { cacheManager } from '@/lib/cacheManager'
+import { api, API_URL } from '@/lib/api'
 
 interface GlobalSearchProps {
   filename: string
@@ -57,7 +58,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
   // Charger les recherches populaires depuis le serveur
   const loadPopularSearches = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/popular-searches`, {
+      const response = await fetch(`${API_URL}/api/popular-searches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
@@ -116,7 +117,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
 
     // Suggestions intelligentes depuis les données
     try {
-      const response = await fetch('http://localhost:3001/api/search-suggestions', {
+      const response = await fetch(api.searchSuggestions, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, query, columns: selectedColumns.length > 0 ? selectedColumns : columns })
@@ -214,7 +215,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
         return
       }
 
-      const response = await fetch('http://localhost:3001/api/advanced-search', {
+      const response = await fetch(api.advancedSearch, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -273,7 +274,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
 
   const exportResults = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/export-search', {
+      const response = await fetch(api.exportSearch, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

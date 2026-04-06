@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react'
 import { cacheManager } from '@/lib/cacheManager'
+import { api } from '@/lib/api'
 
 interface OptimizedTableProps {
   filename: string
@@ -37,7 +38,7 @@ export function OptimizedTable({ filename, columns, totalRows }: OptimizedTableP
     // Charger depuis le serveur
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:3001/api/paginated-data', {
+      const response = await fetch(api.paginatedData, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
