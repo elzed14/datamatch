@@ -16,6 +16,7 @@ import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface UploadResponse {
   success: boolean
@@ -49,7 +50,7 @@ function App() {
       formData.append('file', file)
 
       console.log('Envoi vers le serveur...')
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload`, {
+      const response = await fetch(api.upload, {
         method: 'POST',
         body: formData,
       })
@@ -347,7 +348,7 @@ function App() {
                     filename={fileData.filename}
                     columns={fileData.columns}
                     onCleanComplete={(newFilename) => {
-                      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/download/${newFilename}`)
+                      fetch(api.download(newFilename))
                         .then(() => {
                           setFileData(prev => prev ? { ...prev, filename: newFilename } : null)
                         })

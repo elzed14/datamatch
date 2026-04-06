@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface FileInfo {
   filename: string
@@ -70,7 +71,7 @@ export function MergeModule({
   useEffect(() => {
     if (file2Data) {
       setIsAnalyzing(true)
-      fetch('http://localhost:3001/api/analyze-keys', {
+      fetch(api.analyzeKeys, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +124,7 @@ export function MergeModule({
     const labels = context === 'custom' ? customLabels : CONTEXTS[context]
 
     try {
-      const response = await fetch('http://localhost:3001/api/merge', {
+      const response = await fetch(api.merge, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -315,7 +316,7 @@ export function MergeModule({
                 🔄 Refaire un Merge
               </Button>
               <a
-                href={`http://localhost:3001/api/download/${mergeResult.filename}`}
+                href={api.download(mergeResult.filename)}
                 download={mergeResult.filename}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-9 px-3 gap-2"
               >
