@@ -15,7 +15,12 @@ const app = express()
 const port = 3001
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000',
+    'https://client-axrjlrq2h-elzeds-projects.vercel.app',
+    /\.vercel\.app$/
+  ],
   credentials: true
 }))
 app.use(express.json({ limit: '50mb' }))
