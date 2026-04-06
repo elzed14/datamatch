@@ -140,6 +140,7 @@ export function CustomDashboard({ filename, columns }: CustomDashboardProps) {
 
     return (
       <ResponsiveContainer width="100%" height="100%">
+        <>
         {widget.type === 'bar' && (
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -169,13 +170,14 @@ export function CustomDashboard({ filename, columns }: CustomDashboardProps) {
               outerRadius={80}
               label
             >
-              {data.map((entry, index) => (
+              {data.map((_entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip formatter={(value: any) => new Intl.NumberFormat('fr-FR').format(value)} />
           </PieChart>
         )}
+        </>
       </ResponsiveContainer>
     )
   }

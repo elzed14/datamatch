@@ -52,7 +52,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [popularSearches, setPopularSearches] = useState<SearchSuggestion[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const debounceTimer = useRef<NodeJS.Timeout>()
+  const debounceTimer = useRef<number | undefined>()
 
   useEffect(() => {
     // Charger les recherches sauvegardées
@@ -69,6 +69,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
 
     // Charger les recherches populaires
     loadPopularSearches()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Charger les recherches populaires depuis le serveur
@@ -140,12 +141,12 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
 
   // Debounce pour les suggestions
   useEffect(() => {
-    if (debounceTimer.current) {
+    if (debounceTimer.current !== undefined) {
       clearTimeout(debounceTimer.current)
     }
 
     if (searchQuery) {
-      debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = window.setTimeout(() => {
         generateSuggestions(searchQuery)
       }, 300)
     } else {
@@ -157,6 +158,7 @@ export function GlobalSearch({ filename, columns }: GlobalSearchProps) {
         clearTimeout(debounceTimer.current)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery])
 
   const toggleColumn = (col: string) => {
