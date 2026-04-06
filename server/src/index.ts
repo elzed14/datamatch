@@ -56,7 +56,7 @@ const upload = multer({
 })
 
 // Cache in memory to speed up multiple transformations/pivots on same file
-const fileCache: Record<string, any[]> = {}
+const fileCache: Record<string, any> = {}
 
 function readExcel(filename: string): any[] {
   try {
