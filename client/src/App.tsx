@@ -50,7 +50,7 @@ function App() {
       formData.append('file', file)
 
       console.log('Envoi vers le serveur...')
-      const response = await fetch('http://localhost:3001/api/upload', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload`, {
         method: 'POST',
         body: formData,
       })
@@ -348,7 +348,7 @@ function App() {
                     filename={fileData.filename}
                     columns={fileData.columns}
                     onCleanComplete={(newFilename) => {
-                      fetch(`http://localhost:3001/api/download/${newFilename}`)
+                      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/download/${newFilename}`)
                         .then(() => {
                           setFileData(prev => prev ? { ...prev, filename: newFilename } : null)
                         })
