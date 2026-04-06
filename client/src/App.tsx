@@ -16,7 +16,7 @@ import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, fetchWithRetry } from '@/lib/api'
 
 interface UploadResponse {
   success: boolean
@@ -50,7 +50,7 @@ function App() {
       formData.append('file', file)
 
       console.log('Envoi vers le serveur...')
-      const response = await fetch(api.upload, {
+      const response = await fetchWithRetry(api.upload, {
         method: 'POST',
         body: formData,
       })
@@ -73,7 +73,11 @@ function App() {
       }
     } catch (err: any) {
       console.error('Erreur upload:', err)
-      setErrorMsg(err.message || 'Erreur inconnue')
+      if (err.name === 'AbortError') {
+        setErrorMsg('La requête a expiré. Le serveur met peut-être du temps à démarrer (Render free tier). Veuillez réessayer dans quelques secondes.')
+      } else {
+        setErrorMsg(err.message || 'Erreur inconnue')
+      }
     } finally {
       if (!isSecondFile) {
         setIsUploading(false)
@@ -162,8 +166,15 @@ function App() {
                   <>
                     <UploadZone onFileSelect={handleFileUpload} isLoading={isUploading} />
                     {errorMsg && (
-                      <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive">
-                        {errorMsg}
+                      <div className="mt-4 p-4 bg-destructive/10 text-destructive text-sm rounded-md border-2 border-destructive">
+                        <p className="font-semibold mb-1">⚠️ Erreur</p>
+                        <p>{errorMsg}</p>
+                        {errorMsg.includes('expiré') && (
+                          <p className="mt-2 text-xs">
+                            💡 <strong>Astuce :</strong> Le serveur gratuit Render s'endort après 15 minutes d'inactivité. 
+                            Le premier chargement peut prendre 30-60 secondes. Merci de patienter et de réessayer.
+                          </p>
+                        )}
                       </div>
                     )}
                   </>

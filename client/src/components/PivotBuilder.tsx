@@ -241,22 +241,22 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
                   onClick={() => applyTemplate(template.id)}
                   className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg ${
                     template.score > 0 && template.id !== 'custom'
-                      ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-500 dark:bg-emerald-950/20'
-                      : 'border-muted bg-background hover:border-primary'
+                      ? 'border-emerald-500 bg-emerald-50 hover:border-emerald-600 dark:bg-emerald-950/30 dark:border-emerald-700'
+                      : 'border-muted bg-card hover:border-primary'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-sm">{template.name}</h3>
+                    <h3 className="font-semibold text-sm text-foreground">{template.name}</h3>
                     {template.score > 0 && template.id !== 'custom' && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-600 text-white dark:bg-emerald-700 dark:text-white font-semibold">
                         {template.score} match{template.score > 1 ? 'es' : ''}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">{template.description}</p>
                   {template.score > 0 && template.id !== 'custom' && (
-                    <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800">
-                      <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                    <div className="mt-3 pt-3 border-t border-emerald-300 dark:border-emerald-800">
+                      <p className="text-xs text-emerald-800 dark:text-emerald-200 font-semibold">
                         ✅ Compatible avec vos données
                       </p>
                     </div>
@@ -275,12 +275,12 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
 
       {/* Afficher le modèle sélectionné */}
       {!showTemplates && selectedTemplate && selectedTemplate !== 'custom' && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-900 flex items-center justify-between">
+        <div className="p-3 bg-blue-100 dark:bg-blue-950/40 rounded-md border-2 border-blue-400 dark:border-blue-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
               🎯 Modèle appliqué : {PIVOT_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
             </span>
-            <span className="text-xs text-blue-600 dark:text-blue-400">
+            <span className="text-xs text-blue-800 dark:text-blue-200 font-medium">
               (Vous pouvez modifier en glissant-déposant les champs)
             </span>
           </div>
@@ -318,9 +318,9 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
                    {/* Sélecteurs d'agrégation pour les valeurs */}
                    {valItems.map(item => (
                      <div key={item + '-agg'} className="mt-2 flex items-center gap-2 text-sm justify-end">
-                       <span>Agrégat ({item}) :</span>
+                       <span className="font-medium text-foreground">Agrégat ({item}) :</span>
                        <select 
-                         className="border px-2 py-1 rounded bg-background"
+                         className="border-2 px-2 py-1 rounded bg-background text-foreground font-medium"
                          value={aggTypes[item]} 
                          onChange={(e) => setAggTypes(prev => ({...prev, [item]: e.target.value}))}
                        >
@@ -349,27 +349,27 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
       {pivotData.length > 0 && (
          <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-xl">Résultat du TCD</h3>
+              <h3 className="font-bold text-xl text-foreground">Résultat du TCD</h3>
               <ExportButton
                 sheets={[{ name: 'TCD', data: pivotData }]}
                 filename="DataMatch_TCD"
                 label="⬇ Exporter le TCD en Excel"
               />
             </div>
-            <div className="overflow-x-auto rounded-md border p-1 bg-card">
+            <div className="overflow-x-auto rounded-md border-2 p-1 bg-card">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-muted-foreground uppercase bg-muted">
+                <thead className="text-xs uppercase bg-muted">
                    <tr>
                      {Object.keys(pivotData[0]).map(key => (
-                       <th key={key} className="px-4 py-3">{key.replace('_rowKey', 'Lignes').replace('_count', 'Nb Lignes Total')}</th>
+                       <th key={key} className="px-4 py-3 font-bold text-foreground">{key.replace('_rowKey', 'Lignes').replace('_count', 'Nb Lignes Total')}</th>
                      ))}
                    </tr>
                 </thead>
                 <tbody>
                    {pivotData.map((row, i) => (
-                     <tr key={i} className="border-b last:border-0 hover:bg-muted/10">
+                     <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                        {Object.values(row).map((val: any, j) => (
-                         <td key={j} className="px-4 py-3 font-medium">
+                         <td key={j} className="px-4 py-3 font-medium text-foreground">
                            {typeof val === 'number' ? new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2}).format(val) : val}
                          </td>
                        ))}
