@@ -15,6 +15,7 @@ import { GlobalSearch } from '@/components/GlobalSearch'
 import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
+import { DebugPanel } from '@/components/DebugPanel'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
 import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
@@ -182,6 +183,9 @@ function App() {
               <CardContent>
                 {fileData ? (
                   <div className="space-y-4 text-left">
+                    {/* Debug Panel - À retirer en production */}
+                    <DebugPanel />
+                    
                     <div className="flex justify-between items-center bg-muted p-4 rounded-md border">
                   <div className="space-y-1">
                     <p className="font-semibold text-sm text-foreground">Fichier: <span className="font-normal text-muted-foreground">{fileData.originalName || fileData.filename}</span></p>
@@ -218,6 +222,11 @@ function App() {
                   </div>
                 ) : (
                   <>
+                    {/* Debug Panel - Visible avant upload */}
+                    <div className="mb-4">
+                      <DebugPanel />
+                    </div>
+                    
                     <UploadZone onFileSelect={handleFileUpload} isLoading={isUploading} />
                     {errorMsg && (
                       <div className="mt-4 p-4 bg-destructive/10 text-destructive text-sm rounded-md border-2 border-destructive">
