@@ -30,6 +30,15 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir)
 }
 
+// Health check endpoint pour wake-up automatique
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  })
+})
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) { 
     console.log('Destination upload:', uploadDir)

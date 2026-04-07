@@ -2,9 +2,9 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // Configuration de timeout et retry pour améliorer la stabilité
 export const API_CONFIG = {
-  timeout: 60000, // 60 secondes
+  timeout: 120000, // 120 secondes (2 minutes) pour le cold start de Render
   retries: 3,
-  retryDelay: 1000 // 1 seconde
+  retryDelay: 2000 // 2 secondes
 }
 
 // Fonction helper pour les requêtes avec retry

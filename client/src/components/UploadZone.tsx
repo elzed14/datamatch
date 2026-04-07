@@ -65,7 +65,20 @@ export function UploadZone({ onFileSelect, isLoading }: UploadZoneProps) {
       <p className="text-sm text-muted-foreground mt-2">
         Supporte .xlsx, .xls jusqu'à 50MB
       </p>
-      {isLoading && <p className="mt-4 text-primary animate-pulse">Chargement en cours...</p>}
+      {isLoading && (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            <p className="text-primary font-semibold">Chargement en cours...</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            ⏳ Si c'est la première utilisation, le serveur peut prendre 30-60 secondes à démarrer.
+          </p>
+          <p className="text-xs text-blue-600 font-medium">
+            💡 Merci de patienter, ne fermez pas cette page.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

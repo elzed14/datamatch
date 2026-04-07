@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { UploadZone } from '@/components/UploadZone'
@@ -16,7 +16,7 @@ import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
-import { api, fetchWithRetry } from '@/lib/api'
+import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
 interface UploadResponse {
   success: boolean
@@ -36,6 +36,34 @@ function App() {
   const [file2Data, setFile2Data] = useState<UploadResponse | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [serverStatus, setServerStatus] = useState<'checking' | 'ready' | 'waking'>('checking')
+
+  // Wake up the server on component mount
+  useEffect(() => {
+    const wakeUpServer = async () => {
+      try {
+        console.log('🔍 Vérification du serveur...')
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 secondes pour le ping
+        
+        await fetch(`${API_URL}/api/health`, { 
+          signal: controller.signal,
+          method: 'GET'
+        })
+        
+        clearTimeout(timeoutId)
+        console.log('✅ Serveur prêt !')
+        setServerStatus('ready')
+      } catch (error) {
+        console.log('⏳ Serveur en cours de démarrage...')
+        setServerStatus('waking')
+        // Le serveur va se réveiller, on met le statut à ready après 30 secondes
+        setTimeout(() => setServerStatus('ready'), 30000)
+      }
+    }
+    
+    wakeUpServer()
+  }, [])
 
   const handleFileUpload = async (file: File, isSecondFile: boolean = false) => {
     if (!isSecondFile) {
@@ -116,6 +144,32 @@ function App() {
 
       {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Server Status Banner */}
+        {serverStatus === 'waking' && (
+          <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-400 dark:border-yellow-700 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+              <div className="flex-1">
+                <p className="font-semibold text-yellow-900 dark:text-yellow-100">
+                  ⏳ Serveur en cours de démarrage...
+                </p>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  Le serveur gratuit Render s'endort après 15 minutes d'inactivité. 
+                  Premier chargement : 30-60 secondes. Merci de patienter.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {serverStatus === 'ready' && activeTab === 'upload' && !fileData && (
+          <div className="mb-6 p-3 bg-green-50 dark:bg-green-950/20 border border-green-400 dark:border-green-700 rounded-lg">
+            <p className="text-sm text-green-800 dark:text-green-200">
+              ✅ <strong>Serveur prêt !</strong> Vous pouvez maintenant importer vos fichiers.
+            </p>
+          </div>
+        )}
+        
         {activeTab === 'upload' && (
           <div className="max-w-2xl mx-auto">
             <Card>
