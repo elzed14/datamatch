@@ -15,6 +15,7 @@ import { GlobalSearch } from '@/components/GlobalSearch'
 import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
+import { SmartImport } from '@/components/SmartImport'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
 import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
@@ -218,6 +219,25 @@ function App() {
                   </div>
                 ) : (
                   <>
+                    {/* Smart Import - PDF & Images */}
+                    <div className="mb-6">
+                      <SmartImport onImportComplete={(result) => {
+                        setFileData(result)
+                        setErrorMsg(null)
+                      }} />
+                    </div>
+
+                    {/* Séparateur */}
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-background text-muted-foreground font-medium">OU</span>
+                      </div>
+                    </div>
+
+                    {/* Upload Excel classique */}
                     <UploadZone onFileSelect={handleFileUpload} isLoading={isUploading} />
                     {errorMsg && (
                       <div className="mt-4 p-4 bg-destructive/10 text-destructive text-sm rounded-md border-2 border-destructive">

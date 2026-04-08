@@ -58,5 +58,8 @@ export const api = {
   searchSuggestions: `${API_URL}/api/search-suggestions`,
   popularSearches: `${API_URL}/api/popular-searches`,
   advancedSearch: `${API_URL}/api/advanced-search`,
+  extractPdf: `${API_URL}/api/extract-pdf`,
+  prepareImage: `${API_URL}/api/prepare-image`,
+  saveOcrData: `${API_URL}/api/save-ocr-data`,
   download: (filename: string) => `${API_URL}/api/download/${filename}`
 }

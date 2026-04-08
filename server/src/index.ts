@@ -7,6 +7,8 @@ import _ from 'lodash'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import pdfParse from 'pdf-parse'
+import sharp from 'sharp'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -200,6 +202,138 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   } catch (error: any) {
     console.error("Erreur upload:", error.message, error.stack)
     res.status(500).json({ error: "Erreur lecture: " + error.message })
+  }
+})
+
+// ─── Extraction PDF → Excel ──────────────────────────────────────────────
+app.post('/api/extract-pdf', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier PDF uploadé.' })
+    }
+
+    const filePath = path.join(uploadDir, req.file.filename)
+    const dataBuffer = fs.readFileSync(filePath)
+    
+    // Parser le PDF
+    const pdfData = await pdfParse(dataBuffer)
+    const text = pdfData.text
+
+    // Extraire les tableaux du texte
+    const lines = text.split('\n').filter(line => line.trim())
+    
+    // Détecter les lignes qui ressemblent à des tableaux (contiennent plusieurs espaces ou tabs)
+    const tableLines = lines.filter(line => {
+      const parts = line.split(/\s{2,}|\t/).filter(p => p.trim())
+      return parts.length >= 2
+    })
+
+    if (tableLines.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Aucun tableau détecté. Extraction du texte brut.',
+        data: lines.map(line => ({ Texte: line })),
+        columns: ['Texte'],
+        totalRows: lines.length
+      })
+    }
+
+    // Extraire les colonnes de la première ligne
+    const headerParts = tableLines[0].split(/\s{2,}|\t/).filter(p => p.trim())
+    const columns = headerParts.length > 0 ? headerParts : ['Colonne1', 'Colonne2', 'Colonne3']
+
+    // Extraire les données
+    const data: any[] = []
+    for (let i = 1; i < tableLines.length; i++) {
+      const parts = tableLines[i].split(/\s{2,}|\t/).filter(p => p.trim())
+      if (parts.length > 0) {
+        const row: any = {}
+        columns.forEach((col, idx) => {
+          row[col] = parts[idx] || ''
+        })
+        data.push(row)
+      }
+    }
+
+    // Sauvegarder en Excel
+    const excelFilename = `pdf-extracted-${Date.now()}.xlsx`
+    await saveStyledExcel(excelFilename, data, 'Données PDF')
+    fileCache[excelFilename] = data
+
+    res.json({
+      success: true,
+      originalName: req.file.originalname,
+      filename: excelFilename,
+      columns,
+      previewData: data.slice(0, 10),
+      totalRows: data.length,
+      message: `${data.length} lignes extraites du PDF`
+    })
+  } catch (error: any) {
+    console.error('Erreur extraction PDF:', error)
+    res.status(500).json({ error: 'Erreur lors de l\'extraction du PDF: ' + error.message })
+  }
+})
+
+// ─── Préparation Image pour OCR ──────────────────────────────────────────
+app.post('/api/prepare-image', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucune image uploadée.' })
+    }
+
+    const filePath = path.join(uploadDir, req.file.filename)
+    
+    // Optimiser l'image pour l'OCR
+    const optimizedFilename = `optimized-${req.file.filename}.png`
+    const optimizedPath = path.join(uploadDir, optimizedFilename)
+    
+    await sharp(filePath)
+      .greyscale() // Convertir en niveaux de gris
+      .normalize() // Améliorer le contraste
+      .sharpen() // Améliorer la netteté
+      .png() // Convertir en PNG
+      .toFile(optimizedPath)
+
+    // Retourner l'URL de l'image optimisée pour l'OCR côté client
+    res.json({
+      success: true,
+      originalName: req.file.originalname,
+      optimizedFilename,
+      message: 'Image préparée pour OCR'
+    })
+  } catch (error: any) {
+    console.error('Erreur préparation image:', error)
+    res.status(500).json({ error: 'Erreur lors de la préparation de l\'image: ' + error.message })
+  }
+})
+
+// ─── Sauvegarder les données OCR ─────────────────────────────────────────
+app.post('/api/save-ocr-data', async (req, res) => {
+  try {
+    const { data, originalName } = req.body
+    
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: 'Aucune donnée à sauvegarder.' })
+    }
+
+    const excelFilename = `ocr-${Date.now()}.xlsx`
+    await saveStyledExcel(excelFilename, data, 'Données OCR')
+    fileCache[excelFilename] = data
+
+    const columns = data.length > 0 ? Object.keys(data[0]) : []
+
+    res.json({
+      success: true,
+      originalName,
+      filename: excelFilename,
+      columns,
+      previewData: data.slice(0, 10),
+      totalRows: data.length
+    })
+  } catch (error: any) {
+    console.error('Erreur sauvegarde OCR:', error)
+    res.status(500).json({ error: 'Erreur lors de la sauvegarde: ' + error.message })
   }
 })
 
