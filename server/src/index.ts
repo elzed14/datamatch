@@ -8,6 +8,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -222,13 +223,21 @@ app.post('/api/extract-pdf', uploadAny.single('file'), async (req, res) => {
     const filePath = path.join(uploadDir, req.file.filename)
     const dataBuffer = fs.readFileSync(filePath)
     
-    // Import dynamique de pdf-parse (CommonJS)
-    const pdfParseModule: any = await import('pdf-parse')
-    const pdfParse = pdfParseModule.default || pdfParseModule
+    // Parser le PDF avec pdfjs-dist
+    const loadingTask = pdfjsLib.getDocument({ data: dataBuffer })
+    const pdfDocument = await loadingTask.promise
     
-    // Parser le PDF
-    const pdfData = await pdfParse(dataBuffer)
-    const text = pdfData.text
+    let fullText = ''
+    
+    // Extraire le texte de toutes les pages
+    for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+      const page = await pdfDocument.getPage(pageNum)
+      const textContent = await page.getTextContent()
+      const pageText = textContent.items.map((item: any) => item.str).join(' ')
+      fullText += pageText + '\n'
+    }
+    
+    const text = fullText
 
     // Extraire les tableaux du texte
     const lines = text.split('\n').filter(line => line.trim())
