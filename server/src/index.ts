@@ -223,8 +223,11 @@ app.post('/api/extract-pdf', uploadAny.single('file'), async (req, res) => {
     const filePath = path.join(uploadDir, req.file.filename)
     const dataBuffer = fs.readFileSync(filePath)
     
+    // Convertir Buffer en Uint8Array pour pdfjs-dist
+    const uint8Array = new Uint8Array(dataBuffer)
+    
     // Parser le PDF avec pdfjs-dist
-    const loadingTask = pdfjsLib.getDocument({ data: dataBuffer })
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
     const pdfDocument = await loadingTask.promise
     
     let fullText = ''
