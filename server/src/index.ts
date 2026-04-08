@@ -7,7 +7,7 @@ import _ from 'lodash'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import pdfParse from 'pdf-parse'
+import * as pdfParse from 'pdf-parse'
 import sharp from 'sharp'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -53,6 +53,8 @@ const storage = multer.diskStorage({
     cb(null, newFilename)
   }
 })
+
+// Upload pour fichiers Excel/CSV
 const upload = multer({ 
   storage: storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
@@ -69,6 +71,12 @@ const upload = multer({
       cb(new Error('Type de fichier non supporté. Utilisez .xlsx, .xls ou .csv'))
     }
   }
+})
+
+// Upload pour tous types de fichiers (PDF, images, etc.)
+const uploadAny = multer({ 
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
 })
 
 // Cache in memory to speed up multiple transformations/pivots on same file
@@ -206,7 +214,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 })
 
 // ─── Extraction PDF → Excel ──────────────────────────────────────────────
-app.post('/api/extract-pdf', upload.single('file'), async (req, res) => {
+app.post('/api/extract-pdf', uploadAny.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier PDF uploadé.' })
@@ -216,7 +224,7 @@ app.post('/api/extract-pdf', upload.single('file'), async (req, res) => {
     const dataBuffer = fs.readFileSync(filePath)
     
     // Parser le PDF
-    const pdfData = await pdfParse(dataBuffer)
+    const pdfData = await (pdfParse as any)(dataBuffer)
     const text = pdfData.text
 
     // Extraire les tableaux du texte
@@ -276,7 +284,7 @@ app.post('/api/extract-pdf', upload.single('file'), async (req, res) => {
 })
 
 // ─── Préparation Image pour OCR ──────────────────────────────────────────
-app.post('/api/prepare-image', upload.single('file'), async (req, res) => {
+app.post('/api/prepare-image', uploadAny.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucune image uploadée.' })
