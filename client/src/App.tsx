@@ -156,7 +156,7 @@ function App() {
                 </p>
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   Le serveur gratuit Render s'endort après 15 minutes d'inactivité. 
-                  Premier chargement : 30-60 secondes. Merci de patienter.
+                  <strong>Premier chargement : 1-5 minutes.</strong> Merci de patienter.
                 </p>
               </div>
             </div>

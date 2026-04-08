@@ -71,12 +71,15 @@ export function UploadZone({ onFileSelect, isLoading }: UploadZoneProps) {
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
             <p className="text-primary font-semibold">Chargement en cours...</p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            ⏳ Si c'est la première utilisation, le serveur peut prendre 30-60 secondes à démarrer.
+          <p className="text-xs text-muted-foreground text-center">
+            ⏳ <strong>Première utilisation :</strong> Le serveur peut prendre 1-4 minutes à démarrer.
           </p>
-          <p className="text-xs text-blue-600 font-medium">
-            💡 Merci de patienter, ne fermez pas cette page.
+          <p className="text-xs text-blue-600 font-medium text-center">
+            💡 Merci de patienter, ne fermez pas cette page. Cela peut prendre jusqu'à 5 minutes.
           </p>
+          <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+            <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
+          </div>
         </div>
       )}
     </div>
