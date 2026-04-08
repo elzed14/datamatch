@@ -7,11 +7,7 @@ import _ from 'lodash'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { createRequire } from 'module'
 import sharp from 'sharp'
-
-const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -225,6 +221,10 @@ app.post('/api/extract-pdf', uploadAny.single('file'), async (req, res) => {
 
     const filePath = path.join(uploadDir, req.file.filename)
     const dataBuffer = fs.readFileSync(filePath)
+    
+    // Import dynamique de pdf-parse (CommonJS)
+    const pdfParseModule: any = await import('pdf-parse')
+    const pdfParse = pdfParseModule.default || pdfParseModule
     
     // Parser le PDF
     const pdfData = await pdfParse(dataBuffer)
