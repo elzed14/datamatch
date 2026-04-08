@@ -28,7 +28,7 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       formData.append('file', file)
 
       setProgress(40)
-      const response = await fetch(api.upload.replace('/upload', '/extract-pdf'), {
+      const response = await fetch(api.extractPdf, {
         method: 'POST',
         body: formData
       })
@@ -36,7 +36,8 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       setProgress(80)
       
       if (!response.ok) {
-        throw new Error('Erreur lors de l\'extraction du PDF')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erreur lors de l\'extraction du PDF')
       }
 
       const result = await response.json()
@@ -48,6 +49,7 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       }, 500)
 
     } catch (err: any) {
+      console.error('Erreur PDF:', err)
       setError(err.message || 'Erreur lors de l\'extraction du PDF')
       setStatus('❌ Échec de l\'extraction')
     } finally {
@@ -66,13 +68,14 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       const formData = new FormData()
       formData.append('file', file)
 
-      const prepareResponse = await fetch(api.upload.replace('/upload', '/prepare-image'), {
+      const prepareResponse = await fetch(api.prepareImage, {
         method: 'POST',
         body: formData
       })
 
       if (!prepareResponse.ok) {
-        throw new Error('Erreur lors de la préparation de l\'image')
+        const errorData = await prepareResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erreur lors de la préparation de l\'image')
       }
 
       const { optimizedFilename } = await prepareResponse.json()
@@ -91,7 +94,7 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       })
 
       // Utiliser l'image optimisée
-      const imageUrl = `${api.upload.replace('/api/upload', '')}/api/download/${optimizedFilename}`
+      const imageUrl = api.download(optimizedFilename)
       const { data: { text } } = await worker.recognize(imageUrl)
       await worker.terminate()
 
@@ -137,7 +140,7 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       setProgress(95)
 
       // Étape 4 : Sauvegarder en Excel
-      const saveResponse = await fetch(api.upload.replace('/upload', '/save-ocr-data'), {
+      const saveResponse = await fetch(api.saveOcrData, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,7 +150,8 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       })
 
       if (!saveResponse.ok) {
-        throw new Error('Erreur lors de la sauvegarde')
+        const errorData = await saveResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erreur lors de la sauvegarde')
       }
 
       const result = await saveResponse.json()
@@ -159,6 +163,7 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       }, 500)
 
     } catch (err: any) {
+      console.error('Erreur OCR:', err)
       setError(err.message || 'Erreur lors de l\'OCR')
       setStatus('❌ Échec de l\'OCR')
     } finally {
