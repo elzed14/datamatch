@@ -7,8 +7,11 @@ import _ from 'lodash'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import * as pdfParse from 'pdf-parse'
+import { createRequire } from 'module'
 import sharp from 'sharp'
+
+const require = createRequire(import.meta.url)
+const pdfParse = require('pdf-parse')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -224,7 +227,7 @@ app.post('/api/extract-pdf', uploadAny.single('file'), async (req, res) => {
     const dataBuffer = fs.readFileSync(filePath)
     
     // Parser le PDF
-    const pdfData = await (pdfParse as any)(dataBuffer)
+    const pdfData = await pdfParse(dataBuffer)
     const text = pdfData.text
 
     // Extraire les tableaux du texte
