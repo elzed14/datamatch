@@ -16,7 +16,7 @@ import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { SmartImport } from '@/components/SmartImport'
-import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge } from 'lucide-react'
+import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
 interface UploadResponse {
@@ -38,6 +38,43 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [serverStatus, setServerStatus] = useState<'checking' | 'ready' | 'waking'>('checking')
+  const [navigationHistory, setNavigationHistory] = useState<Array<{tab: string, subTab?: string}>>([{tab: 'upload'}])
+  const [historyIndex, setHistoryIndex] = useState(0)
+
+  // Navigation avec historique
+  const navigateTo = (tab: string, subTab?: string) => {
+    const newEntry = { tab, subTab }
+    const newHistory = navigationHistory.slice(0, historyIndex + 1)
+    newHistory.push(newEntry)
+    setNavigationHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+    
+    setActiveTab(tab as any)
+    if (subTab) setQualitySubTab(subTab as any)
+  }
+
+  const goBack = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      const entry = navigationHistory[newIndex]
+      setHistoryIndex(newIndex)
+      setActiveTab(entry.tab as any)
+      if (entry.subTab) setQualitySubTab(entry.subTab as any)
+    }
+  }
+
+  const goForward = () => {
+    if (historyIndex < navigationHistory.length - 1) {
+      const newIndex = historyIndex + 1
+      const entry = navigationHistory[newIndex]
+      setHistoryIndex(newIndex)
+      setActiveTab(entry.tab as any)
+      if (entry.subTab) setQualitySubTab(entry.subTab as any)
+    }
+  }
+
+  const canGoBack = historyIndex > 0
+  const canGoForward = historyIndex < navigationHistory.length - 1
 
   // Wake up the server on component mount
   useEffect(() => {
@@ -123,20 +160,43 @@ function App() {
             <Database className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-foreground">DataMatch Pro Advanced</h1>
           </div>
+          
+          {/* Boutons de navigation */}
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goBack} 
+              disabled={!canGoBack}
+              title="Précédent"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goForward} 
+              disabled={!canGoForward}
+              title="Suivant"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <nav className="flex space-x-2">
-            <Button variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => setActiveTab('upload')} className="font-medium">
+            <Button variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => navigateTo('upload')} className="font-medium">
               <UploadCloud className="mr-2 h-4 w-4" /> Import Excel
             </Button>
-            <Button variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => setActiveTab('powerquery')} className="font-medium">
+            <Button variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => navigateTo('powerquery')} className="font-medium">
               <FileSpreadsheet className="mr-2 h-4 w-4" /> Power Query & Merge
             </Button>
-            <Button variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => setActiveTab('quality')} className="font-medium">
+            <Button variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => navigateTo('quality', qualitySubTab)} className="font-medium">
               <Sparkles className="mr-2 h-4 w-4" /> Qualité & Analyse
             </Button>
-            <Button variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => setActiveTab('tcd')} className="font-medium">
+            <Button variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => navigateTo('tcd')} className="font-medium">
               <LayoutDashboard className="mr-2 h-4 w-4" /> Pivot Tables (TCD)
             </Button>
-            <Button variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => setActiveTab('dashboard')} className="font-medium">
+            <Button variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => navigateTo('dashboard')} className="font-medium">
               <LayoutDashboard className="mr-2 h-4 w-4" /> Global Dashboard
             </Button>
           </nav>
@@ -349,7 +409,7 @@ function App() {
                 <div className="flex space-x-2 border-b pb-2 overflow-x-auto">
                   <Button 
                     variant={qualitySubTab === 'anomalies' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('anomalies')}
+                    onClick={() => navigateTo('quality', 'anomalies')}
                     size="sm"
                   >
                     <AlertTriangle className="mr-2 h-4 w-4" />
@@ -357,7 +417,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'waterfall' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('waterfall')}
+                    onClick={() => navigateTo('quality', 'waterfall')}
                     size="sm"
                   >
                     <BarChart3 className="mr-2 h-4 w-4" />
@@ -365,7 +425,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'cleaner' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('cleaner')}
+                    onClick={() => navigateTo('quality', 'cleaner')}
                     size="sm"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
@@ -373,7 +433,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'dashboard' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('dashboard')}
+                    onClick={() => navigateTo('quality', 'dashboard')}
                     size="sm"
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -381,7 +441,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'cohort' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('cohort')}
+                    onClick={() => navigateTo('quality', 'cohort')}
                     size="sm"
                   >
                     <Users className="mr-2 h-4 w-4" />
@@ -389,7 +449,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'search' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('search')}
+                    onClick={() => navigateTo('quality', 'search')}
                     size="sm"
                   >
                     <Search className="mr-2 h-4 w-4" />
@@ -397,7 +457,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'export' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('export')}
+                    onClick={() => navigateTo('quality', 'export')}
                     size="sm"
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -405,7 +465,7 @@ function App() {
                   </Button>
                   <Button 
                     variant={qualitySubTab === 'performance' ? 'secondary' : 'ghost'} 
-                    onClick={() => setQualitySubTab('performance')}
+                    onClick={() => navigateTo('quality', 'performance')}
                     size="sm"
                   >
                     <Gauge className="mr-2 h-4 w-4" />
