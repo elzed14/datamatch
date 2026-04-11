@@ -537,26 +537,147 @@ export function MergeModule({
               </div>
             </div>
 
-            {/* Cadrage Métier */}
-            <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
-              <h3 className="text-sm font-bold mb-3 text-blue-800 dark:text-blue-300">3. Terminologie de Résultat (Contexte Métier)</h3>
-              <select
-                className="flex h-10 w-full mb-4 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={context}
-                onChange={e => setContext(e.target.value as keyof typeof CONTEXTS)}
-              >
-                {Object.entries(CONTEXTS).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
-              </select>
+            {/* Cadrage Métier avec explications détaillées */}
+            <div className="p-4 rounded-xl border-2 border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
+              <h3 className="text-sm font-bold mb-3 text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                <span>3. Terminologie de Résultat (Colonne "Statut de présence")</span>
+              </h3>
+              
+              <p className="text-xs text-blue-700 dark:text-blue-300 mb-4">
+                Personnalisez les libellés qui apparaîtront dans la colonne "Statut de présence" selon votre contexte métier.
+              </p>
 
-              {context === 'custom' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input placeholder="Texte si dans les 2 Fich." className="h-9 rounded border px-2 text-xs" value={customLabels.both} onChange={e => setCustomLabels({...customLabels, both: e.target.value})} />
-                  <input placeholder="Texte si Fich. 1 unique" className="h-9 rounded border px-2 text-xs" value={customLabels.f1} onChange={e => setCustomLabels({...customLabels, f1: e.target.value})} />
-                  <input placeholder="Texte si Fich. 2 unique" className="h-9 rounded border px-2 text-xs" value={customLabels.f2} onChange={e => setCustomLabels({...customLabels, f2: e.target.value})} />
+              {/* Sélecteur de contexte */}
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-blue-800 dark:text-blue-300 block mb-2">Contexte prédéfini :</label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={context}
+                  onChange={e => setContext(e.target.value as keyof typeof CONTEXTS)}
+                >
+                  {Object.entries(CONTEXTS).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Champs personnalisables avec explications */}
+              <div className="space-y-4">
+                {/* Présent dans les deux */}
+                <div className="p-3 rounded-lg border border-blue-200 bg-white dark:bg-slate-900">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-sm">
+                      ✓
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs font-semibold text-foreground block mb-1">
+                        Présent dans les DEUX fichiers
+                      </label>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Signification : La ligne existe dans le Fichier 1 ET dans le Fichier 2 (même clé de jointure)
+                      </p>
+                      <input 
+                        type="text"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        value={context === 'custom' ? customLabels.both : CONTEXTS[context].both}
+                        onChange={e => {
+                          if (context !== 'custom') setContext('custom')
+                          setCustomLabels({...customLabels, both: e.target.value})
+                        }}
+                        placeholder="Ex: Présent dans les deux, Renouvelé, Maintenu..."
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-11 text-[10px] text-blue-600 dark:text-blue-400">
+                    💡 Exemples : "Présent dans les deux", "Renouvelé", "Maintenu en poste", "Client fidèle"
+                  </div>
                 </div>
-              )}
+
+                {/* Absent Fichier 2 */}
+                <div className="p-3 rounded-lg border border-red-200 bg-white dark:bg-slate-900">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center text-red-700 dark:text-red-300 font-bold text-sm">
+                      ✗
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs font-semibold text-foreground block mb-1">
+                        Présent dans Fichier 1 UNIQUEMENT (Absent du Fichier 2)
+                      </label>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Signification : La ligne existe dans le Fichier 1 mais PAS dans le Fichier 2 (disparue, supprimée, résiliée...)
+                      </p>
+                      <input 
+                        type="text"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        value={context === 'custom' ? customLabels.f1 : CONTEXTS[context].f1}
+                        onChange={e => {
+                          if (context !== 'custom') setContext('custom')
+                          setCustomLabels({...customLabels, f1: e.target.value})
+                        }}
+                        placeholder="Ex: Absent fichier 2, Résilié, Départ, Perdu..."
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-11 text-[10px] text-red-600 dark:text-red-400">
+                    💡 Exemples : "Absent fichier 2", "Résilié", "Départ", "Client perdu", "Contrat terminé"
+                  </div>
+                </div>
+
+                {/* Nouveau Fichier 2 */}
+                <div className="p-3 rounded-lg border border-green-200 bg-white dark:bg-slate-900">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-700 dark:text-green-300 font-bold text-sm">
+                      +
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs font-semibold text-foreground block mb-1">
+                        Présent dans Fichier 2 UNIQUEMENT (Nouveau)
+                      </label>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Signification : La ligne existe dans le Fichier 2 mais PAS dans le Fichier 1 (nouvelle entrée, ajout, acquisition...)
+                      </p>
+                      <input 
+                        type="text"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        value={context === 'custom' ? customLabels.f2 : CONTEXTS[context].f2}
+                        onChange={e => {
+                          if (context !== 'custom') setContext('custom')
+                          setCustomLabels({...customLabels, f2: e.target.value})
+                        }}
+                        placeholder="Ex: Nouveau, Affaire nouvelle, Embauche, Acquisition..."
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-11 text-[10px] text-green-600 dark:text-green-400">
+                    💡 Exemples : "Nouveau (Seulement F2)", "Affaire nouvelle", "Nouvelle embauche", "Client acquis"
+                  </div>
+                </div>
+              </div>
+
+              {/* Aperçu du résultat */}
+              <div className="mt-4 p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-md border border-indigo-200 dark:border-indigo-800">
+                <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300 mb-2">📊 Aperçu de la colonne "Statut de présence" :</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                      {context === 'custom' ? customLabels.both : CONTEXTS[context].both}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">← Lignes présentes dans les 2 fichiers</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                      {context === 'custom' ? customLabels.f1 : CONTEXTS[context].f1}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">← Lignes uniquement dans Fichier 1</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                      {context === 'custom' ? customLabels.f2 : CONTEXTS[context].f2}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">← Lignes uniquement dans Fichier 2</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Type de Jointure */}
