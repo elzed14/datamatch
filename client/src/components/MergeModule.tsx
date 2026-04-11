@@ -188,17 +188,17 @@ export function MergeModule({
           
           {/* Statistiques de fusion */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200">
-              <div className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Colonnes Fichier 1</div>
-              <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">{f1Cols.length}</div>
+            <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700">
+              <div className="text-xs text-emerald-900 dark:text-emerald-100 font-bold">Colonnes Fichier 1</div>
+              <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{f1Cols.length}</div>
             </div>
-            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 border border-blue-200">
-              <div className="text-xs text-blue-700 dark:text-blue-300 font-medium">Colonnes Fichier 2</div>
-              <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">{f2Cols.length}</div>
+            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700">
+              <div className="text-xs text-blue-900 dark:text-blue-100 font-bold">Colonnes Fichier 2</div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{f2Cols.length}</div>
             </div>
-            <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 border border-purple-200">
-              <div className="text-xs text-purple-700 dark:text-purple-300 font-medium">Colonnes Évolution</div>
-              <div className="text-2xl font-bold text-purple-800 dark:text-purple-200">{evolutionCols.length}</div>
+            <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700">
+              <div className="text-xs text-purple-900 dark:text-purple-100 font-bold">Colonnes Évolution</div>
+              <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{evolutionCols.length}</div>
             </div>
           </div>
 
@@ -207,9 +207,9 @@ export function MergeModule({
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm">Aperçu des données fusionnées (5 premières lignes)</h3>
               <div className="flex gap-2 text-xs">
-                <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Fichier 1{suffix1}</span>
-                <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">Fichier 2{suffix2}</span>
-                <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">Évolutions</span>
+                <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100 font-semibold">Fichier 1{suffix1}</span>
+                <span className="px-2 py-1 rounded bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100 font-semibold">Fichier 2{suffix2}</span>
+                <span className="px-2 py-1 rounded bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-100 font-semibold">Évolutions</span>
               </div>
             </div>
             
