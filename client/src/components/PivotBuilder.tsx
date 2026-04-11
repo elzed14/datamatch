@@ -353,7 +353,7 @@ export function PivotBuilder({ columns, filename }: PivotBuilderProps) {
               <ExportButton
                 sheets={[{ name: 'TCD', data: pivotData }]}
                 filename="DataMatch_TCD"
-                label="⬇ Exporter le TCD en Excel"
+                showDropdown={true}
               />
             </div>
             <div className="overflow-x-auto rounded-md border-2 p-1 bg-card">
