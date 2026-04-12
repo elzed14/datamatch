@@ -3,7 +3,7 @@ services:
     name: datamatch-backend
     runtime: node
     rootDir: server
-    buildCommand: bash build.sh
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -12,7 +12,5 @@ services:
         value: 3001
       - key: PUPPETEER_SKIP_DOWNLOAD
         value: true
-      - key: CHROME_PATH
-        value: /usr/bin/chromium
       - key: CORS_ORIGIN
         value: https://client-elzeds-projects.vercel.app
