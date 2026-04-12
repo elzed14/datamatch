@@ -883,7 +883,7 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
         return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme préservée)' })
       } catch (loErr: any) {
         console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
-        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath), styleMap: [
+        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath) }, { styleMap: [
           "p[style-name='Heading 1'] => h1:fresh",
           "p[style-name='Heading 2'] => h2:fresh",
           "p[style-name='Heading 3'] => h3:fresh",
@@ -891,10 +891,7 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
           "b => strong",
           "i => em",
           "u => u",
-          "strike => s",
-          "table => table",
-          "tr => tr",
-          "td => td"
+          "strike => s"
         ]})
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
           @page { margin: 2.5cm; size: A4; }
