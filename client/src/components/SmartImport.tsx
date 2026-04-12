@@ -367,10 +367,28 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
               <div className="flex items-center gap-3 mb-3">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                 <span className="text-sm font-medium text-green-800">{status}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{extractedData.length} lignes extraites</span>
               </div>
               
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-green-700 font-semibold">Télécharger le résultat :</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onImportComplete({
+                      success: true,
+                      originalName: `Extraction (${importType === 'pdf' ? 'PDF' : 'OCR'})`,
+                      filename: extractedFilename,
+                      columns: extractedData.length > 0 ? Object.keys(extractedData[0]) : [],
+                      previewData: extractedData,
+                      totalRows: extractedData.length
+                    })
+                  }}
+                  className="gap-2"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Utiliser ces données
+                </Button>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline" className="gap-2">
@@ -393,10 +411,6 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
-                <span className="text-xs text-muted-foreground">
-                  {extractedData.length} lignes extraites
-                </span>
               </div>
             </div>
             

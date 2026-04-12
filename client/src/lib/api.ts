@@ -61,5 +61,7 @@ export const api = {
   extractPdf: `${API_URL}/api/extract-pdf`,
   prepareImage: `${API_URL}/api/prepare-image`,
   saveOcrData: `${API_URL}/api/save-ocr-data`,
+  convert: `${API_URL}/api/convert`,
+  convertDownload: (filename: string) => `${API_URL}/api/convert/download/${filename}`,
   download: (filename: string) => `${API_URL}/api/download/${filename}`
 }

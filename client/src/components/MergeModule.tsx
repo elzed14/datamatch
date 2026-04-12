@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { api } from '@/lib/api'
 
 interface FileInfo {
@@ -174,6 +175,21 @@ export function MergeModule({
     const f2Cols = previewCols.filter(c => c.includes(suffix2))
     const evolutionCols = previewCols.filter(c => c.includes('Évolution'))
 
+    // Statistiques de statut pour le graphique
+    const statusCounts: Record<string, number> = {}
+    mergeResult.previewData.forEach(row => {
+      const s = String(row['Statut de présence'] ?? '')
+      if (s) statusCounts[s] = (statusCounts[s] || 0) + 1
+    })
+    const statusChartData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }))
+    const STATUS_COLORS: Record<string, string> = {}
+    statusChartData.forEach(({ name }) => {
+      const n = name.toLowerCase()
+      STATUS_COLORS[name] = n.includes('nouveau') || n.includes('affaire') || n.includes('embauche') ? '#10b981'
+        : n.includes('absent') || n.includes('résili') || n.includes('départ') ? '#f43f5e'
+        : '#6366f1'
+    })
+
     return (
       <Card className="border-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/10">
         <CardHeader>
@@ -301,6 +317,42 @@ export function MergeModule({
               </table>
             </div>
           </div>
+
+          {/* Graphique de répartition des statuts */}
+          {statusChartData.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg border bg-card">
+                <h4 className="text-sm font-bold mb-3">📊 Répartition par Statut</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={statusChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35}
+                      label={({ name, percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
+                    >
+                      {statusChartData.map((entry) => (
+                        <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#94a3b8'} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => [`${v} lignes (aperçu)`, '']} />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <p className="text-[10px] text-muted-foreground text-center mt-1">Basé sur l'aperçu (10 premières lignes)</p>
+              </div>
+              <div className="p-4 rounded-lg border bg-card space-y-2">
+                <h4 className="text-sm font-bold mb-3">📋 Détail des Statuts</h4>
+                {statusChartData.map(({ name, value }) => (
+                  <div key={name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[name] || '#94a3b8' }} />
+                      <span className="text-xs">{name}</span>
+                    </div>
+                    <span className="text-xs font-bold">{value} lignes</span>
+                  </div>
+                ))}
+                <p className="text-[10px] text-muted-foreground pt-2 border-t">Total fichier fusionné : <strong>{mergeResult.totalRows.toLocaleString('fr-FR')}</strong> lignes</p>
+              </div>
+            </div>
+          )}
 
           {/* Info sur les colonnes */}
           <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-100 dark:border-blue-900">

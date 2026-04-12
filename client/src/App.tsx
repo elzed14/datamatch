@@ -16,7 +16,8 @@ import { AdvancedExport } from '@/components/AdvancedExport'
 import { OptimizedTable } from '@/components/OptimizedTable'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { SmartImport } from '@/components/SmartImport'
-import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge, ChevronLeft, ChevronRight } from 'lucide-react'
+import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { FileConverter } from '@/components/FileConverter'
 import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
 interface UploadResponse {
@@ -30,7 +31,7 @@ interface UploadResponse {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'upload' | 'powerquery' | 'tcd' | 'dashboard' | 'quality'>('upload')
+  const [activeTab, setActiveTab] = useState<'upload' | 'powerquery' | 'tcd' | 'dashboard' | 'quality' | 'converter'>('upload')
   const [qualitySubTab, setQualitySubTab] = useState<'anomalies' | 'waterfall' | 'cleaner' | 'dashboard' | 'cohort' | 'search' | 'export' | 'performance'>('anomalies')
   const [powerQueryStep, setPowerQueryStep] = useState<'mapping' | 'merge'>('mapping')
   const [fileData, setFileData] = useState<UploadResponse | null>(null)
@@ -155,7 +156,7 @@ function App() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Navbar */}
       <header className="border-b bg-card shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <Database className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-foreground">DataMatch Pro Advanced</h1>
@@ -183,21 +184,24 @@ function App() {
             </Button>
           </div>
           
-          <nav className="flex space-x-2">
-            <Button variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => navigateTo('upload')} className="font-medium">
-              <UploadCloud className="mr-2 h-4 w-4" /> Import Excel
+          <nav className="flex space-x-1 overflow-x-auto">
+            <Button size="sm" variant={activeTab === 'upload' ? 'default' : 'ghost'} onClick={() => navigateTo('upload')} className="font-medium whitespace-nowrap">
+              <UploadCloud className="mr-1 h-4 w-4" /> Import
             </Button>
-            <Button variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => navigateTo('powerquery')} className="font-medium">
-              <FileSpreadsheet className="mr-2 h-4 w-4" /> Power Query & Merge
+            <Button size="sm" variant={activeTab === 'powerquery' ? 'default' : 'ghost'} onClick={() => navigateTo('powerquery')} className="font-medium whitespace-nowrap">
+              <FileSpreadsheet className="mr-1 h-4 w-4" /> Power Query
             </Button>
-            <Button variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => navigateTo('quality', qualitySubTab)} className="font-medium">
-              <Sparkles className="mr-2 h-4 w-4" /> Qualité & Analyse
+            <Button size="sm" variant={activeTab === 'quality' ? 'default' : 'ghost'} onClick={() => navigateTo('quality', qualitySubTab)} className="font-medium whitespace-nowrap">
+              <Sparkles className="mr-1 h-4 w-4" /> Qualité
             </Button>
-            <Button variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => navigateTo('tcd')} className="font-medium">
-              <LayoutDashboard className="mr-2 h-4 w-4" /> Pivot Tables (TCD)
+            <Button size="sm" variant={activeTab === 'tcd' ? 'default' : 'ghost'} onClick={() => navigateTo('tcd')} className="font-medium whitespace-nowrap">
+              <LayoutDashboard className="mr-1 h-4 w-4" /> TCD
             </Button>
-            <Button variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => navigateTo('dashboard')} className="font-medium">
-              <LayoutDashboard className="mr-2 h-4 w-4" /> Global Dashboard
+            <Button size="sm" variant={activeTab === 'dashboard' ? 'default' : 'ghost'} onClick={() => navigateTo('dashboard')} className="font-medium whitespace-nowrap">
+              <LayoutDashboard className="mr-1 h-4 w-4" /> Dashboard
+            </Button>
+            <Button size="sm" variant={activeTab === 'converter' ? 'default' : 'ghost'} onClick={() => navigateTo('converter')} className="font-medium whitespace-nowrap">
+              <RefreshCw className="mr-1 h-4 w-4" /> Convertisseur
             </Button>
           </nav>
         </div>
@@ -534,6 +538,11 @@ function App() {
                 )}
               </>
             )}
+          </div>
+        )}
+        {activeTab === 'converter' && (
+          <div className="max-w-4xl mx-auto">
+            <FileConverter />
           </div>
         )}
       </main>
