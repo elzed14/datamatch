@@ -231,6 +231,7 @@ export function Dashboard({ columns, filename }: Omit<DashboardProps, 'originalN
                     <CardDescription>Visualisation dynamique du top 20 résultats</CardDescription>
                   </div>
                    <ExportButton
+                    showDropdown={true}
                     sheets={[{
                       name: 'Export Dashboard',
                       data: data.map(d => ({ [groupBy]: d.fullName, [valueCol]: d.value, 'Occurrences': d.count }))

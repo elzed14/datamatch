@@ -1,9 +1,12 @@
 import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileText, Image as ImageIcon, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { FileText, Image as ImageIcon, Upload, CheckCircle2, AlertCircle, Loader2, Download, FileSpreadsheet } from 'lucide-react'
 import { createWorker } from 'tesseract.js'
 import { api } from '@/lib/api'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 interface SmartImportProps {
   onImportComplete: (data: any) => void
@@ -15,6 +18,8 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
   const [status, setStatus] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [importType, setImportType] = useState<'pdf' | 'image' | null>(null)
+  const [extractedData, setExtractedData] = useState<any[] | null>(null)
+  const [extractedFilename, setExtractedFilename] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handlePDFExtraction = async (file: File) => {
@@ -43,6 +48,8 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       const result = await response.json()
       setProgress(100)
       setStatus('✅ PDF extrait avec succès !')
+      setExtractedData(result.previewData || [])
+      setExtractedFilename(result.filename)
       
       setTimeout(() => {
         onImportComplete(result)
@@ -157,6 +164,8 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       const result = await saveResponse.json()
       setProgress(100)
       setStatus('✅ OCR terminé avec succès !')
+      setExtractedData(tableData)
+      setExtractedFilename(result.filename)
 
       setTimeout(() => {
         onImportComplete(result)
@@ -185,6 +194,86 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
     } else {
       setError('Format de fichier non supporté. Utilisez PDF ou Image (JPG, PNG, etc.)')
     }
+  }
+
+  const handleExportExcel = () => {
+    if (!extractedFilename) return
+    window.location.href = api.download(extractedFilename)
+  }
+
+  const handleExportPDF = () => {
+    if (!extractedData || extractedData.length === 0) return
+
+    const doc = new jsPDF('l', 'mm', 'a4')
+    
+    doc.setFontSize(16)
+    doc.setTextColor(67, 56, 202)
+    doc.text('Smart Import - Données Extraites', 14, 15)
+
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 14, 22)
+    doc.text(`${extractedData.length} lignes`, 14, 27)
+
+    const columns = Object.keys(extractedData[0])
+    const rows = extractedData.map(row => columns.map(col => String(row[col] || '')))
+
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: 32,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: {
+        fillColor: [67, 56, 202],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    })
+
+    doc.save('smart-import-extraction.pdf')
+  }
+
+  const handleExportWord = async () => {
+    if (!extractedData || extractedData.length === 0) return
+
+    // Créer un contenu HTML pour Word
+    const columns = Object.keys(extractedData[0])
+    let htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+      <head><meta charset='utf-8'><title>Smart Import</title></head>
+      <body>
+        <h1>Smart Import - Données Extraites</h1>
+        <p>Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+        <table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; width: 100%;'>
+          <thead>
+            <tr style='background-color: #4338CA; color: white;'>
+              ${columns.map(col => `<th>${col}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${extractedData.map(row => `
+              <tr>
+                ${columns.map(col => `<td>${row[col] || ''}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+
+    const blob = new Blob([htmlContent], { type: 'application/msword' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'smart-import-extraction.doc'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const triggerFileInput = (type: 'pdf' | 'image') => {
@@ -279,11 +368,60 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
           </div>
         )}
 
-        {/* Succès */}
-        {status && !isProcessing && !error && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-green-800">{status}</span>
+        {/* Succès avec options d'export */}
+        {status && !isProcessing && !error && extractedData && (
+          <div className="space-y-3">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-3 mb-3">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">{status}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-green-700 font-semibold">Télécharger le résultat :</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Exporter
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={handleExportExcel}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
+                      Excel (.xlsx)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPDF}>
+                      <FileText className="mr-2 h-4 w-4 text-red-600" />
+                      PDF (.pdf)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportWord}>
+                      <FileText className="mr-2 h-4 w-4 text-blue-600" />
+                      Word (.doc)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                <span className="text-xs text-muted-foreground">
+                  {extractedData.length} lignes extraites
+                </span>
+              </div>
+            </div>
+            
+            <Button
+              onClick={() => {
+                setError(null)
+                setStatus('')
+                setProgress(0)
+                setExtractedData(null)
+                setExtractedFilename('')
+              }}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              🔄 Nouvelle extraction
+            </Button>
           </div>
         )}
 
