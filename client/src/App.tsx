@@ -18,6 +18,7 @@ import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { SmartImport } from '@/components/SmartImport'
 import { UploadCloud, FileSpreadsheet, LayoutDashboard, Database, Sparkles, AlertTriangle, BarChart3, Users, Search, Download, Gauge, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { FileConverter } from '@/components/FileConverter'
+import { PdfEditor } from '@/components/PdfEditor'
 import { api, fetchWithRetry, API_URL } from '@/lib/api'
 
 interface UploadResponse {
@@ -541,8 +542,9 @@ function App() {
           </div>
         )}
         {activeTab === 'converter' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
             <FileConverter />
+            <PdfEditor />
           </div>
         )}
       </main>

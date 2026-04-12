@@ -1152,6 +1152,101 @@ app.get('/api/convert/download/:filename', (req, res) => {
   }
 })
 
+// ─── Éditeur PDF ──────────────────────────────────────────────────────────
+
+// Fusionner plusieurs PDFs en un seul
+app.post('/api/pdf/merge', uploadAny.array('files'), async (req, res) => {
+  try {
+    const files = req.files as Express.Multer.File[]
+    if (!files || files.length < 2) return res.status(400).json({ error: 'Au moins 2 fichiers PDF requis.' })
+
+    const mergedPdf = await PDFDocument.create()
+    for (const file of files) {
+      const bytes = fs.readFileSync(path.join(uploadDir, file.filename))
+      const pdf = await PDFDocument.load(bytes)
+      const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
+      pages.forEach(p => mergedPdf.addPage(p))
+    }
+
+    const outputFilename = `merged-pdf-${Date.now()}.pdf`
+    fs.writeFileSync(path.join(uploadDir, outputFilename), await mergedPdf.save())
+    // Nettoyer les fichiers temporaires
+    files.forEach(f => fs.unlinkSync(path.join(uploadDir, f.filename)))
+
+    res.json({ success: true, filename: outputFilename, message: `${files.length} PDFs fusionnés (${mergedPdf.getPageCount()} pages)` })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Réorganiser / supprimer des pages d'un PDF
+// body: { filename, pageOrder: number[] }  (indices 0-based dans le nouvel ordre, pages absentes = supprimées)
+app.post('/api/pdf/reorder', uploadAny.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Fichier PDF requis.' })
+    const pageOrder: number[] = JSON.parse(req.body.pageOrder || '[]')
+    if (!pageOrder.length) return res.status(400).json({ error: 'pageOrder requis.' })
+
+    const bytes = fs.readFileSync(path.join(uploadDir, req.file.filename))
+    const srcPdf = await PDFDocument.load(bytes)
+    const newPdf = await PDFDocument.create()
+    const copied = await newPdf.copyPages(srcPdf, pageOrder)
+    copied.forEach(p => newPdf.addPage(p))
+
+    const outputFilename = `reordered-${Date.now()}.pdf`
+    fs.writeFileSync(path.join(uploadDir, outputFilename), await newPdf.save())
+    fs.unlinkSync(path.join(uploadDir, req.file.filename))
+
+    res.json({ success: true, filename: outputFilename, pageCount: newPdf.getPageCount(), message: `PDF réorganisé (${newPdf.getPageCount()} pages)` })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Diviser un PDF : extraire une plage de pages
+// body: { ranges: [{start, end, name}] }  (1-based)
+app.post('/api/pdf/split', uploadAny.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Fichier PDF requis.' })
+    const ranges: { start: number; end: number; name?: string }[] = JSON.parse(req.body.ranges || '[]')
+    if (!ranges.length) return res.status(400).json({ error: 'ranges requis.' })
+
+    const bytes = fs.readFileSync(path.join(uploadDir, req.file.filename))
+    const srcPdf = await PDFDocument.load(bytes)
+    const totalPages = srcPdf.getPageCount()
+    const outputs: { filename: string; name: string; pageCount: number }[] = []
+
+    for (const range of ranges) {
+      const start = Math.max(0, range.start - 1)
+      const end = Math.min(totalPages - 1, range.end - 1)
+      const indices = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+      const newPdf = await PDFDocument.create()
+      const copied = await newPdf.copyPages(srcPdf, indices)
+      copied.forEach(p => newPdf.addPage(p))
+      const outputFilename = `split-${Date.now()}-${range.name || `pages${range.start}-${range.end}`}.pdf`
+      fs.writeFileSync(path.join(uploadDir, outputFilename), await newPdf.save())
+      outputs.push({ filename: outputFilename, name: range.name || `Pages ${range.start}-${range.end}`, pageCount: newPdf.getPageCount() })
+    }
+
+    fs.unlinkSync(path.join(uploadDir, req.file.filename))
+    res.json({ success: true, files: outputs, message: `${outputs.length} fichier(s) créé(s)` })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Infos d'un PDF (nombre de pages)
+app.post('/api/pdf/info', uploadAny.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Fichier PDF requis.' })
+    const bytes = fs.readFileSync(path.join(uploadDir, req.file.filename))
+    const pdf = await PDFDocument.load(bytes)
+    res.json({ success: true, filename: req.file.filename, pageCount: pdf.getPageCount() })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ─── Détection d'Anomalies ────────────────────────────────────────────────
 app.post('/api/detect-anomalies', (req, res) => {
   const { filename, columns } = req.body
