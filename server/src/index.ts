@@ -863,7 +863,6 @@ app.listen(port, () => {
 app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni.' })
-
     const { targetFormat } = req.body
     if (!targetFormat) return res.status(400).json({ error: 'Format cible manquant.' })
 
@@ -872,372 +871,216 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
     const baseName = path.basename(req.file.originalname, path.extname(req.file.originalname))
     const outputFilename = `converted-${Date.now()}-${baseName}.${targetFormat}`
     const outputPath = path.join(uploadDir, outputFilename)
+    console.log(`Conversion: ${originalExt} -> ${targetFormat}`)
 
-    console.log(`Conversion: ${originalExt} → ${targetFormat}`)
-
-    // ── Word (.docx) → PDF via LibreOffice CLI ──────────────────────────
-    if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'pdf') {
+    // Helper LibreOffice CLI
+    const convertWithLibreOffice = async (ext: string): Promise<boolean> => {
       try {
-        await execAsync(`libreoffice --headless --convert-to pdf --outdir "${uploadDir}" "${filePath}"`)
-        const loOutput = path.join(uploadDir, path.basename(filePath, path.extname(filePath)) + '.pdf')
-        fs.renameSync(loOutput, outputPath)
-        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme préservée)' })
-      } catch (loErr: any) {
-        console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
-        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath) })
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-          @page { margin: 2.5cm; size: A4; }
-          * { box-sizing: border-box; }
-          body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; margin: 0; padding: 0; }
-          h1 { font-size: 18pt; font-weight: bold; margin: 12pt 0 6pt 0; }
-          h1.title { font-size: 24pt; text-align: center; margin-bottom: 24pt; }
-          h2 { font-size: 16pt; font-weight: bold; margin: 10pt 0 4pt 0; }
-          h3 { font-size: 14pt; font-weight: bold; margin: 8pt 0 4pt 0; }
-          p { margin: 0 0 8pt 0; text-align: justify; }
-          strong { font-weight: bold; }
-          em { font-style: italic; }
-          u { text-decoration: underline; }
-          s { text-decoration: line-through; }
-          table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-          td, th { border: 1px solid #000; padding: 4pt 6pt; font-size: 10pt; }
-          th { background: #f0f0f0; font-weight: bold; }
-          ul, ol { margin: 4pt 0 8pt 20pt; padding: 0; }
-          li { margin-bottom: 4pt; }
-          img { max-width: 100%; height: auto; }
-        </style></head><body>${htmlContent}</body></html>`
-        const browser = await launchBrowser()
-        const page = await browser.newPage()
-        await page.setContent(html, { waitUntil: 'networkidle0' })
-        const pdfBuffer2 = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' } })
-        await browser.close()
-        fs.writeFileSync(outputPath, pdfBuffer2)
-        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF via Puppeteer (mise en forme HTML préservée)' })
-      }
+        await execAsync(`libreoffice --headless --convert-to ${ext} --outdir "${uploadDir}" "${filePath}"`)
+        const loOutput = path.join(uploadDir, path.basename(filePath, path.extname(filePath)) + `.${ext}`)
+        if (fs.existsSync(loOutput)) { fs.renameSync(loOutput, outputPath); return true }
+        return false
+      } catch { return false }
     }
 
-    // ── Word (.docx) → TXT ──────────────────────────────────────────────
+    // Word -> PDF
+    if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'pdf') {
+      const ok = await convertWithLibreOffice('pdf')
+      if (ok) return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme preservee)' })
+      const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath) })
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{margin:2.5cm;size:A4}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#000;margin:0}h1{font-size:18pt;font-weight:bold;margin:12pt 0 6pt}h2{font-size:16pt;font-weight:bold;margin:10pt 0 4pt}h3{font-size:14pt;font-weight:bold;margin:8pt 0 4pt}p{margin:0 0 8pt;text-align:justify}table{border-collapse:collapse;width:100%;margin:8pt 0}td,th{border:1px solid #000;padding:4pt 6pt;font-size:10pt}th{background:#f0f0f0;font-weight:bold}ul,ol{margin:4pt 0 8pt 20pt}li{margin-bottom:4pt}img{max-width:100%;height:auto}</style></head><body>${htmlContent}</body></html>`
+      const browser = await launchBrowser()
+      const pg = await browser.newPage()
+      await pg.setContent(html, { waitUntil: 'networkidle0' })
+      const pdfBuf = await pg.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' } })
+      await browser.close()
+      fs.writeFileSync(outputPath, pdfBuf)
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF via Puppeteer' })
+    }
+
+    // Word -> TXT
     if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'txt') {
-      const docBuffer = fs.readFileSync(filePath)
-      const { value: text } = await mammoth.extractRawText({ buffer: docBuffer })
+      const { value: text } = await mammoth.extractRawText({ buffer: fs.readFileSync(filePath) })
       fs.writeFileSync(outputPath, text, 'utf-8')
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Texte extrait avec succès' })
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Texte extrait avec succes' })
     }
 
-    // ── Word (.docx) → Excel ────────────────────────────────────────────
+    // Word -> Excel
     if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'xlsx') {
-      const docBuffer = fs.readFileSync(filePath)
-      const { value: text } = await mammoth.extractRawText({ buffer: docBuffer })
-      const lines = text.split('\n').filter(l => l.trim())
-      const data = lines.map((line, i) => ({ 'Ligne': i + 1, 'Contenu': line }))
+      const { value: text } = await mammoth.extractRawText({ buffer: fs.readFileSync(filePath) })
+      const lines = text.split('\n').filter((l: string) => l.trim())
+      const data = lines.map((line: string, i: number) => ({ 'Ligne': i + 1, 'Contenu': line }))
       await saveStyledExcel(outputFilename, data, 'Contenu Word')
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${lines.length} lignes extraites` })
     }
 
-    // ── PDF → Excel ─────────────────────────────────────────────────────
+    // PDF -> Word
+    if (originalExt === 'pdf' && targetFormat === 'docx') {
+      const ok = await convertWithLibreOffice('docx')
+      if (ok) return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'PDF converti en Word (mise en forme preservee)' })
+      const dataBuffer = fs.readFileSync(filePath)
+      const pdfDoc2 = await pdfjsLib.getDocument({ data: new Uint8Array(dataBuffer) }).promise
+      const paragraphs: Paragraph[] = [new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 32, color: '4338CA' })], spacing: { after: 300 } })]
+      for (let p = 1; p <= pdfDoc2.numPages; p++) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `Page ${p}`, bold: true, size: 24, color: '6366f1' })], spacing: { before: 200, after: 100 } }))
+        const pg = await pdfDoc2.getPage(p)
+        const tc = await pg.getTextContent()
+        tc.items.map((item: any) => item.str).join(' ').split(/\s{3,}/).filter((l: string) => l.trim())
+          .forEach((line: string) => paragraphs.push(new Paragraph({ children: [new TextRun({ text: line.trim(), size: 22 })], spacing: { after: 80 } })))
+      }
+      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] })
+      fs.writeFileSync(outputPath, await Packer.toBuffer(doc))
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDoc2.numPages} page(s) converties en Word` })
+    }
+
+    // PDF -> Excel
     if (originalExt === 'pdf' && targetFormat === 'xlsx') {
       const dataBuffer = fs.readFileSync(filePath)
-      const uint8Array = new Uint8Array(dataBuffer)
-      const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise
-      
-      let allData: any[] = []
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item: any) => item.str).join(' ')
-        const lines = pageText.split(/\s{3,}/).filter(l => l.trim())
-        lines.forEach(line => allData.push({ 'Page': pageNum, 'Contenu': line.trim() }))
+      const pdfDoc2 = await pdfjsLib.getDocument({ data: new Uint8Array(dataBuffer) }).promise
+      const allData: any[] = []
+      for (let p = 1; p <= pdfDoc2.numPages; p++) {
+        const pg = await pdfDoc2.getPage(p)
+        const tc = await pg.getTextContent()
+        tc.items.map((item: any) => item.str).join(' ').split(/\s{3,}/).filter((l: string) => l.trim())
+          .forEach((line: string) => allData.push({ 'Page': p, 'Contenu': line.trim() }))
       }
-      
-      if (allData.length === 0) allData = [{ 'Page': 1, 'Contenu': 'Aucun texte extrait' }]
-      await saveStyledExcel(outputFilename, allData, 'Données PDF')
+      if (allData.length === 0) allData.push({ 'Page': 1, 'Contenu': 'Aucun texte extrait' })
+      await saveStyledExcel(outputFilename, allData, 'Donnees PDF')
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${allData.length} lignes extraites du PDF` })
     }
 
-    // ── PDF → TXT ───────────────────────────────────────────────────────
+    // PDF -> TXT
     if (originalExt === 'pdf' && targetFormat === 'txt') {
       const dataBuffer = fs.readFileSync(filePath)
-      const uint8Array = new Uint8Array(dataBuffer)
-      const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise
+      const pdfDoc2 = await pdfjsLib.getDocument({ data: new Uint8Array(dataBuffer) }).promise
       let fullText = ''
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        fullText += `\n--- Page ${pageNum} ---\n`
-        fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n'
+      for (let p = 1; p <= pdfDoc2.numPages; p++) {
+        const pg = await pdfDoc2.getPage(p)
+        const tc = await pg.getTextContent()
+        fullText += `\n--- Page ${p} ---\n` + tc.items.map((item: any) => item.str).join(' ') + '\n'
       }
       fs.writeFileSync(outputPath, fullText, 'utf-8')
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDocument.numPages} page(s) extraite(s)` })
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDoc2.numPages} page(s) extraite(s)` })
     }
 
-    // ── PDF → Word (.docx) ──────────────────────────────────────────────
-    if (originalExt === 'pdf' && targetFormat === 'docx') {
-      const dataBuffer = fs.readFileSync(filePath)
-      const uint8Array = new Uint8Array(dataBuffer)
-      const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise
-      
-      const paragraphs: Paragraph[] = []
-      paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: baseName, bold: true, size: 32, color: '4338CA' })],
-        spacing: { after: 300 }
-      }))
-
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        paragraphs.push(new Paragraph({
-          children: [new TextRun({ text: `Page ${pageNum}`, bold: true, size: 24, color: '6366f1' })],
-          spacing: { before: 200, after: 100 }
-        }))
-        const page = await pdfDocument.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item: any) => item.str).join(' ')
-        const lines = pageText.split(/\s{3,}/).filter(l => l.trim())
-        lines.forEach(line => {
-          paragraphs.push(new Paragraph({
-            children: [new TextRun({ text: line.trim(), size: 22 })],
-            spacing: { after: 80 }
-          }))
-        })
-      }
-
-      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] })
-      const buffer = await Packer.toBuffer(doc)
-      fs.writeFileSync(outputPath, buffer)
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDocument.numPages} page(s) converties en Word` })
-    }
-
-    // ── Excel → PDF via LibreOffice CLI ─────────────────────────────────
+    // Excel -> PDF
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'pdf') {
-      try {
-        await execAsync(`libreoffice --headless --convert-to pdf --outdir "${uploadDir}" "${filePath}"`)
-        const loOutput = path.join(uploadDir, path.basename(filePath, path.extname(filePath)) + '.pdf')
-        fs.renameSync(loOutput, outputPath)
-        const data = readExcel(req.file.filename)
-        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF (mise en forme préservée)` })
-      } catch (loErr: any) {
-        console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
-        const data = readExcel(req.file.filename)
-        if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
-        const columns = Object.keys(data[0])
-        const headerHtml = columns.map(c => `<th>${c}</th>`).join('')
-        const rowsHtml = data.map((row, i) =>
-          `<tr class="${i % 2 === 0 ? 'even' : ''}">` +
-          columns.map(c => `<td>${row[c] ?? ''}</td>`).join('') +
-          `</tr>`
-        ).join('')
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-          body{font-family:Arial,sans-serif;font-size:9px;margin:20px}
-          h2{color:#4338CA;margin-bottom:10px}
-          table{border-collapse:collapse;width:100%}
-          th{background:#4338CA;color:#fff;padding:6px 8px;text-align:left}
-          td{padding:4px 8px;border-bottom:1px solid #E2E8F0}
-          tr.even td{background:#F8FAFC}
-        </style></head><body>
-          <h2>${baseName}</h2>
-          <p style="color:#6B7280;font-size:8px">${data.length} lignes • ${columns.length} colonnes</p>
-          <table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>
-        </body></html>`
-        const browser = await launchBrowser()
-        const page = await browser.newPage()
-        await page.setContent(html, { waitUntil: 'networkidle0' })
-        const pdfBuffer2 = await page.pdf({ format: 'A4', landscape: columns.length > 6, printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '10mm', right: '10mm' } })
-        await browser.close()
-        fs.writeFileSync(outputPath, pdfBuffer2)
-        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF via Puppeteer` })
-      }
+      const ok = await convertWithLibreOffice('pdf')
+      if (ok) { const data = readExcel(req.file.filename); return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF` }) }
+      const data = readExcel(req.file.filename)
+      if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
+      const columns = Object.keys(data[0])
+      const headerHtml = columns.map(c => `<th>${c}</th>`).join('')
+      const rowsHtml = data.map((row: any, i: number) => `<tr class="${i % 2 === 0 ? 'even' : ''}">${columns.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`).join('')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:9px;margin:20px}table{border-collapse:collapse;width:100%}th{background:#4338CA;color:#fff;padding:6px 8px;text-align:left}td{padding:4px 8px;border-bottom:1px solid #E2E8F0}tr.even td{background:#F8FAFC}</style></head><body><h2>${baseName}</h2><table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`
+      const browser = await launchBrowser()
+      const pg = await browser.newPage()
+      await pg.setContent(html, { waitUntil: 'networkidle0' })
+      const pdfBuf = await pg.pdf({ format: 'A4', landscape: columns.length > 6, printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '10mm', right: '10mm' } })
+      await browser.close()
+      fs.writeFileSync(outputPath, pdfBuf)
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF via Puppeteer` })
     }
 
-    // ── Excel → CSV ─────────────────────────────────────────────────────
+    // Excel -> CSV
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'csv') {
       const data = readExcel(req.file.filename)
       if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
       const columns = Object.keys(data[0])
       let csv = columns.join(';') + '\n'
-      data.forEach(row => {
-        csv += columns.map(c => {
-          const v = String(row[c] ?? '')
-          return v.includes(';') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v
-        }).join(';') + '\n'
-      })
-      fs.writeFileSync(outputPath, '\uFEFF' + csv, 'utf-8') // BOM pour Excel FR
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes exportées en CSV` })
+      data.forEach((row: any) => { csv += columns.map(c => { const v = String(row[c] ?? ''); return v.includes(';') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v }).join(';') + '\n' })
+      fs.writeFileSync(outputPath, '\uFEFF' + csv, 'utf-8')
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes exportees en CSV` })
     }
 
-    // ── Excel → JSON ────────────────────────────────────────────────────
+    // Excel -> JSON
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'json') {
       const data = readExcel(req.file.filename)
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2), 'utf-8')
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} enregistrements exportés en JSON` })
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} enregistrements exportes en JSON` })
     }
 
-    // ── Excel → Word (.docx) ────────────────────────────────────────────
+    // Excel -> Word
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'docx') {
       const data = readExcel(req.file.filename)
       if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
       const columns = Object.keys(data[0])
-
       const tableRows = [
-        new TableRow({
-          children: columns.map(col => new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: col, bold: true, color: 'FFFFFF', size: 18 })] })],
-            shading: { fill: '4338CA' },
-            width: { size: Math.floor(9000 / columns.length), type: WidthType.DXA }
-          }))
-        }),
-        ...data.slice(0, 500).map((row, i) => new TableRow({
-          children: columns.map(col => new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: String(row[col] ?? ''), size: 16 })] })],
-            shading: { fill: i % 2 === 0 ? 'F8FAFC' : 'FFFFFF' },
-            width: { size: Math.floor(9000 / columns.length), type: WidthType.DXA }
-          }))
-        }))
+        new TableRow({ children: columns.map(col => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: col, bold: true, color: 'FFFFFF', size: 18 })] })], shading: { fill: '4338CA' }, width: { size: Math.floor(9000 / columns.length), type: WidthType.DXA } })) }),
+        ...data.slice(0, 500).map((row: any, i: number) => new TableRow({ children: columns.map(col => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(row[col] ?? ''), size: 16 })] })], shading: { fill: i % 2 === 0 ? 'F8FAFC' : 'FFFFFF' }, width: { size: Math.floor(9000 / columns.length), type: WidthType.DXA } })) }))
       ]
-
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: [
-            new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 36, color: '4338CA' })], spacing: { after: 200 } }),
-            new Paragraph({ children: [new TextRun({ text: `${data.length} lignes • ${columns.length} colonnes`, size: 18, color: '6B7280' })], spacing: { after: 400 } }),
-            new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } })
-          ]
-        }]
-      })
-      const buffer = await Packer.toBuffer(doc)
-      fs.writeFileSync(outputPath, buffer)
+      const doc = new Document({ sections: [{ properties: {}, children: [
+        new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 36, color: '4338CA' })], spacing: { after: 200 } }),
+        new Paragraph({ children: [new TextRun({ text: `${data.length} lignes - ${columns.length} colonnes`, size: 18, color: '6B7280' })], spacing: { after: 400 } }),
+        new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } })
+      ] }] })
+      fs.writeFileSync(outputPath, await Packer.toBuffer(doc))
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${Math.min(data.length, 500)} lignes converties en Word` })
     }
 
-    // ── CSV → Excel ─────────────────────────────────────────────────────
+    // CSV -> Excel
     if (originalExt === 'csv' && targetFormat === 'xlsx') {
       const data = readExcel(req.file.filename)
-      await saveStyledExcel(outputFilename, data, 'Données CSV')
+      await saveStyledExcel(outputFilename, data, 'Donnees CSV')
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en Excel` })
     }
 
-    // ── CSV → JSON ──────────────────────────────────────────────────────
+    // CSV -> JSON
     if (originalExt === 'csv' && targetFormat === 'json') {
       const data = readExcel(req.file.filename)
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2), 'utf-8')
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} enregistrements en JSON` })
     }
 
-    // ── Image → PDF ─────────────────────────────────────────────────────
+    // Image -> PDF
     if (['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'webp'].includes(originalExt) && targetFormat === 'pdf') {
       const pdfDoc = await PDFDocument.create()
-      
-      // Optimiser l'image avec sharp
-      const optimizedBuffer = await sharp(filePath)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .jpeg({ quality: 90 })
-        .toBuffer()
-      
+      const optimizedBuffer = await sharp(filePath).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer()
       const jpgImage = await pdfDoc.embedJpg(optimizedBuffer)
       const { width: imgW, height: imgH } = jpgImage.scale(1)
-      
-      // Adapter la page à l'image (max A4)
-      const maxW = 595, maxH = 842
-      const scale = Math.min(maxW / imgW, maxH / imgH, 1)
+      const scale = Math.min(595 / imgW, 842 / imgH, 1)
       const finalW = imgW * scale, finalH = imgH * scale
-      
-      const page = pdfDoc.addPage([finalW + 40, finalH + 60])
-      page.drawImage(jpgImage, { x: 20, y: 40, width: finalW, height: finalH })
-      
+      const pg = pdfDoc.addPage([finalW + 40, finalH + 60])
+      pg.drawImage(jpgImage, { x: 20, y: 40, width: finalW, height: finalH })
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-      page.drawText(`${baseName}  •  Converti par DataMatch Pro`, {
-        x: 20, y: 15, font, size: 8, color: rgb(0.6, 0.6, 0.6)
-      })
-
-      const pdfBytes = await pdfDoc.save()
-      fs.writeFileSync(outputPath, pdfBytes)
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Image convertie en PDF haute qualité' })
+      pg.drawText(`${baseName} - Converti par DataMatch Pro`, { x: 20, y: 15, font, size: 8, color: rgb(0.6, 0.6, 0.6) })
+      fs.writeFileSync(outputPath, await pdfDoc.save())
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Image convertie en PDF haute qualite' })
     }
 
-    // ── Image → Image (format différent) ────────────────────────────────
+    // Image -> Image
     if (['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'webp'].includes(originalExt) && ['jpg', 'jpeg', 'png', 'webp'].includes(targetFormat)) {
-      let sharpInstance = sharp(filePath).resize({ width: 2000, withoutEnlargement: true })
-      
-      if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-        sharpInstance = sharpInstance.jpeg({ quality: 95 }) as any
-      } else if (targetFormat === 'png') {
-        sharpInstance = sharpInstance.png({ compressionLevel: 6 }) as any
-      } else if (targetFormat === 'webp') {
-        sharpInstance = sharpInstance.webp({ quality: 90 }) as any
-      }
-      
-      await sharpInstance.toFile(outputPath)
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `Image convertie en ${targetFormat.toUpperCase()} haute qualité` })
+      let s = sharp(filePath).resize({ width: 2000, withoutEnlargement: true })
+      if (targetFormat === 'jpg' || targetFormat === 'jpeg') s = s.jpeg({ quality: 95 }) as any
+      else if (targetFormat === 'png') s = s.png({ compressionLevel: 6 }) as any
+      else if (targetFormat === 'webp') s = s.webp({ quality: 90 }) as any
+      await s.toFile(outputPath)
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `Image convertie en ${targetFormat.toUpperCase()} haute qualite` })
     }
 
-    // ── PDF → Images PNG via Puppeteer (une image par page) ─────────────
+    // PDF -> PNG via Puppeteer
     if (originalExt === 'pdf' && targetFormat === 'png') {
       const dataBuffer = fs.readFileSync(filePath)
-      const uint8Array = new Uint8Array(dataBuffer)
-      const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise
-      const numPages = pdfDocument.numPages
-
-      // Encoder le PDF en base64 pour l'afficher dans le navigateur headless
+      const pdfDoc2 = await pdfjsLib.getDocument({ data: new Uint8Array(dataBuffer) }).promise
+      const numPages = pdfDoc2.numPages
       const pdfBase64 = dataBuffer.toString('base64')
       const browser = await launchBrowser()
       const screenshots: string[] = []
-
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const pageHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-          <style>*{margin:0;padding:0} canvas{display:block}</style>
-          </head><body>
-          <canvas id="c"></canvas>
-          <script>
-            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const data=atob('${pdfBase64}');
-            const arr=new Uint8Array(data.length);
-            for(let i=0;i<data.length;i++) arr[i]=data.charCodeAt(i);
-            pdfjsLib.getDocument({data:arr}).promise.then(pdf=>pdf.getPage(${pageNum}).then(page=>{
-              const vp=page.getViewport({scale:2});
-              const canvas=document.getElementById('c');
-              canvas.width=vp.width; canvas.height=vp.height;
-              document.body.style.width=vp.width+'px';
-              document.body.style.height=vp.height+'px';
-              return page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-            })).then(()=>document.title='done');
-          </script></body></html>`
-
-        const page = await browser.newPage()
-        await page.setContent(pageHtml)
-        await page.waitForFunction(() => document.title === 'done', { timeout: 15000 })
+        const pageHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><style>*{margin:0;padding:0}canvas{display:block}</style></head><body><canvas id="c"></canvas><script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const data=atob('${pdfBase64}');const arr=new Uint8Array(data.length);for(let i=0;i<data.length;i++)arr[i]=data.charCodeAt(i);pdfjsLib.getDocument({data:arr}).promise.then(pdf=>pdf.getPage(${pageNum}).then(page=>{const vp=page.getViewport({scale:2});const canvas=document.getElementById('c');canvas.width=vp.width;canvas.height=vp.height;document.body.style.width=vp.width+'px';document.body.style.height=vp.height+'px';return page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;})).then(()=>document.title='done');</script></body></html>`
+        const pg = await browser.newPage()
+        await pg.setContent(pageHtml)
+        await pg.waitForFunction(() => document.title === 'done', { timeout: 15000 })
         const screenshotFilename = `converted-${Date.now()}-${baseName}-page${pageNum}.png`
-        const screenshotPath = path.join(uploadDir, screenshotFilename)
-        await page.screenshot({ path: screenshotPath as `${string}.png`, fullPage: false })
-        await page.close()
+        await pg.screenshot({ path: path.join(uploadDir, screenshotFilename) as `${string}.png`, fullPage: false })
+        await pg.close()
         screenshots.push(screenshotFilename)
       }
-
       await browser.close()
-
-      // Si une seule page, retourner directement le PNG
-      if (screenshots.length === 1) {
-        return res.json({ success: true, filename: screenshots[0], originalFormat: originalExt, targetFormat, message: `PDF converti en PNG (1 page)` })
-      }
-
-      // Plusieurs pages → créer un ZIP ou retourner la liste
-      return res.json({
-        success: true,
-        filename: screenshots[0],
-        files: screenshots,
-        originalFormat: originalExt,
-        targetFormat,
-        message: `${numPages} pages converties en PNG`
-      })
+      return res.json({ success: true, filename: screenshots[0], files: screenshots, originalFormat: originalExt, targetFormat, message: `${numPages} page(s) converties en PNG` })
     }
 
-    return res.status(400).json({ 
-      error: `Conversion ${originalExt} → ${targetFormat} non supportée.`,
-      supported: [
-        'docx→pdf', 'docx→txt', 'docx→xlsx',
-        'pdf→xlsx', 'pdf→txt', 'pdf→docx',
-        'xlsx→pdf', 'xlsx→csv', 'xlsx→json', 'xlsx→docx',
-        'csv→xlsx', 'csv→json',
-        'jpg/png→pdf', 'jpg→png', 'png→jpg', 'jpg→webp'
-      ]
-    })
+    return res.status(400).json({ error: `Conversion ${originalExt} -> ${targetFormat} non supportee.` })
 
   } catch (error: any) {
     console.error('Erreur conversion:', error)
@@ -1245,7 +1088,7 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
   }
 })
 
-// ─── Télécharger un fichier converti ─────────────────────────────────────
+
 app.get('/api/convert/download/:filename', (req, res) => {
   const filepath = path.join(uploadDir, req.params.filename)
   if (fs.existsSync(filepath)) {
