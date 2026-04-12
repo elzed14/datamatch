@@ -918,19 +918,73 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
     if (originalExt === 'pdf' && targetFormat === 'docx') {
       const ok = await convertWithLibreOffice('docx')
       if (ok) return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'PDF converti en Word (mise en forme preservee)' })
+
+      // Fallback: reconstruction structurelle via positions pdfjs
       const dataBuffer = fs.readFileSync(filePath)
       const pdfDoc2 = await pdfjsLib.getDocument({ data: new Uint8Array(dataBuffer) }).promise
-      const paragraphs: Paragraph[] = [new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 32, color: '4338CA' })], spacing: { after: 300 } })]
+      const docChildren: (Paragraph | Table)[] = [
+        new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 32, color: '4338CA' })], spacing: { after: 300 } })
+      ]
+
       for (let p = 1; p <= pdfDoc2.numPages; p++) {
-        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `Page ${p}`, bold: true, size: 24, color: '6366f1' })], spacing: { before: 200, after: 100 } }))
+        docChildren.push(new Paragraph({ children: [new TextRun({ text: `Page ${p}`, bold: true, size: 24, color: '6366f1' })], spacing: { before: 200, after: 100 } }))
         const pg = await pdfDoc2.getPage(p)
         const tc = await pg.getTextContent()
-        tc.items.map((item: any) => item.str).join(' ').split(/\s{3,}/).filter((l: string) => l.trim())
-          .forEach((line: string) => paragraphs.push(new Paragraph({ children: [new TextRun({ text: line.trim(), size: 22 })], spacing: { after: 80 } })))
+        const viewport = pg.getViewport({ scale: 1 })
+
+        // Grouper les items par ligne (Y arrondi à 2px près)
+        const lineMap: Map<number, { x: number; text: string }[]> = new Map()
+        for (const item of tc.items as any[]) {
+          if (!item.str?.trim()) continue
+          const y = Math.round((viewport.height - item.transform[5]) / 2) * 2
+          const x = Math.round(item.transform[4])
+          if (!lineMap.has(y)) lineMap.set(y, [])
+          lineMap.get(y)!.push({ x, text: item.str })
+        }
+
+        // Trier les lignes par Y croissant
+        const sortedLines = [...lineMap.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, items]) => items.sort((a, b) => a.x - b.x))
+
+        // Détecter si c'est un tableau : >= 2 colonnes sur >= 3 lignes consécutives
+        const colCounts = sortedLines.map(l => l.length)
+        const isTable = sortedLines.length >= 3 && colCounts.filter(c => c >= 2).length >= sortedLines.length * 0.6
+
+        if (isTable) {
+          // Déterminer le nombre max de colonnes
+          const maxCols = Math.max(...colCounts)
+          const tableRows = sortedLines.map((line, i) => {
+            const cells = Array.from({ length: maxCols }, (_, ci) => {
+              const cellText = line[ci]?.text ?? ''
+              return new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: cellText, bold: i === 0, size: i === 0 ? 18 : 16 })] })],
+                shading: i === 0 ? { fill: 'E8EAF6' } : { fill: i % 2 === 0 ? 'F8FAFC' : 'FFFFFF' },
+                width: { size: Math.floor(9000 / maxCols), type: WidthType.DXA },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                  bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                  left: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                  right: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+                }
+              })
+            })
+            return new TableRow({ children: cells })
+          })
+          docChildren.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }))
+          docChildren.push(new Paragraph({ children: [] }))
+        } else {
+          // Texte normal : joindre les items de chaque ligne
+          for (const line of sortedLines) {
+            const text = line.map(i => i.text).join(' ').trim()
+            if (text) docChildren.push(new Paragraph({ children: [new TextRun({ text, size: 22 })], spacing: { after: 60 } }))
+          }
+        }
       }
-      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] })
+
+      const doc = new Document({ sections: [{ properties: {}, children: docChildren }] })
       fs.writeFileSync(outputPath, await Packer.toBuffer(doc))
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDoc2.numPages} page(s) converties en Word` })
+      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDoc2.numPages} page(s) converties en Word avec tableaux` })
     }
 
     // PDF -> Excel
