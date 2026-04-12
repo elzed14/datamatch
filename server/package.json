@@ -12,7 +12,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "DataMatch backend - puppeteer-core + sparticuz/chromium",
   "dependencies": {
     "@sparticuz/chromium": "^147.0.0",
     "@types/cors": "^2.8.19",
