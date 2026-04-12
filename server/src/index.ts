@@ -61,6 +61,31 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir)
 }
 
+// ─── Nettoyage automatique des fichiers temporaires ────────────────────
+const AUTO_CLEAN_INTERVAL_MS = 60 * 60 * 1000  // toutes les heures
+const FILE_MAX_AGE_MS = 2 * 60 * 60 * 1000     // fichiers > 2h supprimés
+
+function cleanOldFiles() {
+  try {
+    const now = Date.now()
+    const files = fs.readdirSync(uploadDir)
+    let deleted = 0
+    for (const file of files) {
+      const filePath = path.join(uploadDir, file)
+      const stat = fs.statSync(filePath)
+      if (now - stat.mtimeMs > FILE_MAX_AGE_MS) {
+        fs.unlinkSync(filePath)
+        deleted++
+      }
+    }
+    if (deleted > 0) console.log(`🧹 Nettoyage auto: ${deleted} fichier(s) supprimé(s)`)
+  } catch (err) {
+    console.error('Erreur nettoyage auto:', err)
+  }
+}
+
+setInterval(cleanOldFiles, AUTO_CLEAN_INTERVAL_MS)
+
 // Health check endpoint pour wake-up automatique
 app.get('/api/health', (req, res) => {
   res.json({ 
