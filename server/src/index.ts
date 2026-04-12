@@ -15,34 +15,26 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx'
 import libreoffice from 'libreoffice-convert'
 import { promisify as promisifyUtil } from 'util'
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 
 const libreofficeConvert = promisifyUtil(libreoffice.convert)
 
-// Détecte automatiquement le chemin Chrome selon l'OS
-function getChromePath(): string {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH
-  // Linux (Render, Railway, etc.)
-  const linuxPaths = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']
-  for (const p of linuxPaths) {
-    if (fs.existsSync(p)) return p
-  }
-  // Windows
-  return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-}
-
 async function launchBrowser() {
+  // Windows local : utilise Chrome installé
+  if (process.platform === 'win32') {
+    const winPath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    return puppeteer.launch({
+      executablePath: winPath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+  }
+  // Linux (Render) : utilise @sparticuz/chromium portable
   return puppeteer.launch({
-    executablePath: getChromePath(),
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      '--single-process'
-    ]
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+    args: chromium.args
   })
 }
 
