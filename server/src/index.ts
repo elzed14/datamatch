@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
@@ -12,6 +13,23 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import mammoth from 'mammoth'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx'
+import libreoffice from 'libreoffice-convert'
+import { promisify as promisifyUtil } from 'util'
+import puppeteer from 'puppeteer'
+
+const libreofficeConvert = promisifyUtil(libreoffice.convert)
+
+// Lance un browser puppeteer (Chrome local requis)
+async function launchBrowser() {
+  return puppeteer.launch({
+    executablePath: (
+      process.env.CHROME_PATH ||
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    ),
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  })
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -849,75 +867,29 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
 
     console.log(`Conversion: ${originalExt} → ${targetFormat}`)
 
-    // ── Word (.docx) → PDF ──────────────────────────────────────────────
+    // ── Word (.docx) → PDF via LibreOffice ou Puppeteer ─────────────────
     if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'pdf') {
-      const docBuffer = fs.readFileSync(filePath)
-      const { value: html } = await mammoth.convertToHtml({ buffer: docBuffer })
-      
-      // Extraire le texte propre
-      const { value: rawText } = await mammoth.extractRawText({ buffer: docBuffer })
-      const lines = rawText.split('\n').filter(l => l.trim())
-
-      const pdfDoc = await PDFDocument.create()
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-      
-      const pageWidth = 595, pageHeight = 842 // A4
-      const margin = 50, lineHeight = 16, fontSize = 11
-      
-      let page = pdfDoc.addPage([pageWidth, pageHeight])
-      let y = pageHeight - margin
-
-      // En-tête
-      page.drawText(baseName, { x: margin, y, font: boldFont, size: 16, color: rgb(0.26, 0.22, 0.79) })
-      y -= 30
-      page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1, color: rgb(0.8, 0.8, 0.8) })
-      y -= 20
-
-      for (const line of lines) {
-        if (y < margin + lineHeight) {
-          page = pdfDoc.addPage([pageWidth, pageHeight])
-          y = pageHeight - margin
-        }
-        const isTitle = line.length < 80 && line === line.toUpperCase() && line.trim().length > 3
-        const displayFont = isTitle ? boldFont : font
-        const displaySize = isTitle ? 13 : fontSize
-        const color = isTitle ? rgb(0.26, 0.22, 0.79) : rgb(0.1, 0.1, 0.1)
-        
-        // Découper les lignes trop longues
-        const maxChars = Math.floor((pageWidth - 2 * margin) / (displaySize * 0.55))
-        const chunks = []
-        for (let i = 0; i < line.length; i += maxChars) chunks.push(line.slice(i, i + maxChars))
-        
-        for (const chunk of chunks) {
-          if (y < margin + lineHeight) {
-            page = pdfDoc.addPage([pageWidth, pageHeight])
-            y = pageHeight - margin
-          }
-          page.drawText(chunk, { x: margin, y, font: displayFont, size: displaySize, color })
-          y -= lineHeight
-        }
-        if (isTitle) y -= 5
+      try {
+        const docBuffer = fs.readFileSync(filePath)
+        const pdfBuffer = await libreofficeConvert(docBuffer, '.pdf', undefined)
+        fs.writeFileSync(outputPath, pdfBuffer)
+        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme préservée)' })
+      } catch (loErr: any) {
+        console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
+        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath) })
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+          body{font-family:Arial,sans-serif;font-size:11px;margin:40px;line-height:1.6;color:#111}
+          h1,h2,h3{color:#4338CA} table{border-collapse:collapse;width:100%}
+          td,th{border:1px solid #ccc;padding:6px} th{background:#4338CA;color:#fff}
+        </style></head><body><h2 style="color:#4338CA">${baseName}</h2>${htmlContent}</body></html>`
+        const browser = await launchBrowser()
+        const page = await browser.newPage()
+        await page.setContent(html, { waitUntil: 'networkidle0' })
+        const pdfBuffer2 = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' } })
+        await browser.close()
+        fs.writeFileSync(outputPath, pdfBuffer2)
+        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF via Puppeteer (mise en forme HTML préservée)' })
       }
-
-      // Pied de page sur chaque page
-      const pages = pdfDoc.getPages()
-      pages.forEach((p, i) => {
-        p.drawText(`Page ${i + 1} / ${pages.length}  •  Converti par DataMatch Pro`, {
-          x: margin, y: 20, font, size: 8, color: rgb(0.6, 0.6, 0.6)
-        })
-      })
-
-      const pdfBytes = await pdfDoc.save()
-      fs.writeFileSync(outputPath, pdfBytes)
-
-      return res.json({
-        success: true,
-        filename: outputFilename,
-        originalFormat: originalExt,
-        targetFormat,
-        message: `Word converti en PDF (${pages.length} page(s))`
-      })
     }
 
     // ── Word (.docx) → TXT ──────────────────────────────────────────────
@@ -1009,78 +981,45 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDocument.numPages} page(s) converties en Word` })
     }
 
-    // ── Excel → PDF ─────────────────────────────────────────────────────
+    // ── Excel → PDF via LibreOffice ou Puppeteer ────────────────────────
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'pdf') {
-      const data = readExcel(req.file.filename)
-      if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
-      
-      const columns = Object.keys(data[0])
-      const pdfDoc = await PDFDocument.create()
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-      
-      const pageWidth = 842, pageHeight = 595 // A4 paysage
-      const margin = 30
-      const colWidth = Math.min(120, Math.floor((pageWidth - 2 * margin) / columns.length))
-      const rowHeight = 18, headerHeight = 24, fontSize = 8
-
-      let page = pdfDoc.addPage([pageWidth, pageHeight])
-      let y = pageHeight - margin
-
-      // Titre
-      page.drawText(baseName, { x: margin, y, font: boldFont, size: 14, color: rgb(0.26, 0.22, 0.79) })
-      y -= 25
-      page.drawText(`${data.length} lignes • ${columns.length} colonnes • Généré par DataMatch Pro`, {
-        x: margin, y, font, size: 8, color: rgb(0.5, 0.5, 0.5)
-      })
-      y -= 20
-
-      const drawRow = (rowData: string[], isHeader: boolean, yPos: number, currentPage: any) => {
-        const bgColor = isHeader ? rgb(0.26, 0.22, 0.79) : rgb(1, 1, 1)
-        const textColor = isHeader ? rgb(1, 1, 1) : rgb(0.1, 0.1, 0.1)
-        const rHeight = isHeader ? headerHeight : rowHeight
-        
-        currentPage.drawRectangle({
-          x: margin, y: yPos - rHeight + 4,
-          width: colWidth * columns.length, height: rHeight,
-          color: bgColor, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 0.5
-        })
-        rowData.forEach((cell, i) => {
-          const text = String(cell).substring(0, Math.floor(colWidth / (fontSize * 0.55)))
-          currentPage.drawText(text, {
-            x: margin + i * colWidth + 4, y: yPos - rHeight + 8,
-            font: isHeader ? boldFont : font, size: fontSize, color: textColor
-          })
-        })
+      try {
+        const xlsxBuffer = fs.readFileSync(filePath)
+        const pdfBuffer = await libreofficeConvert(xlsxBuffer, '.pdf', undefined)
+        fs.writeFileSync(outputPath, pdfBuffer)
+        const data = readExcel(req.file.filename)
+        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF (mise en forme préservée)` })
+      } catch (loErr: any) {
+        console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
+        const data = readExcel(req.file.filename)
+        if (data.length === 0) return res.status(400).json({ error: 'Fichier Excel vide.' })
+        const columns = Object.keys(data[0])
+        const headerHtml = columns.map(c => `<th>${c}</th>`).join('')
+        const rowsHtml = data.map((row, i) =>
+          `<tr class="${i % 2 === 0 ? 'even' : ''}">` +
+          columns.map(c => `<td>${row[c] ?? ''}</td>`).join('') +
+          `</tr>`
+        ).join('')
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+          body{font-family:Arial,sans-serif;font-size:9px;margin:20px}
+          h2{color:#4338CA;margin-bottom:10px}
+          table{border-collapse:collapse;width:100%}
+          th{background:#4338CA;color:#fff;padding:6px 8px;text-align:left}
+          td{padding:4px 8px;border-bottom:1px solid #E2E8F0}
+          tr.even td{background:#F8FAFC}
+        </style></head><body>
+          <h2>${baseName}</h2>
+          <p style="color:#6B7280;font-size:8px">${data.length} lignes • ${columns.length} colonnes</p>
+          <table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>
+        </body></html>`
+        const browser = await launchBrowser()
+        const page = await browser.newPage()
+        await page.setContent(html, { waitUntil: 'networkidle0' })
+        const pdfBuffer2 = await page.pdf({ format: 'A4', landscape: columns.length > 6, printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '10mm', right: '10mm' } })
+        await browser.close()
+        fs.writeFileSync(outputPath, pdfBuffer2)
+        return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF via Puppeteer` })
       }
-
-      // En-tête
-      drawRow(columns, true, y, page)
-      y -= headerHeight
-
-      // Données
-      for (const row of data) {
-        if (y < margin + rowHeight) {
-          page = pdfDoc.addPage([pageWidth, pageHeight])
-          y = pageHeight - margin
-          drawRow(columns, true, y, page)
-          y -= headerHeight
-        }
-        const rowData = columns.map(c => String(row[c] ?? ''))
-        drawRow(rowData, false, y, page)
-        y -= rowHeight
-      }
-
-      // Pied de page
-      pdfDoc.getPages().forEach((p, i) => {
-        p.drawText(`Page ${i + 1} / ${pdfDoc.getPageCount()}  •  DataMatch Pro`, {
-          x: margin, y: 15, font, size: 7, color: rgb(0.6, 0.6, 0.6)
-        })
-      })
-
-      const pdfBytes = await pdfDoc.save()
-      fs.writeFileSync(outputPath, pdfBytes)
-      return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF` })
     }
 
     // ── Excel → CSV ─────────────────────────────────────────────────────
@@ -1205,51 +1144,64 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `Image convertie en ${targetFormat.toUpperCase()} haute qualité` })
     }
 
-    // ── PDF → Images PNG (une par page) ─────────────────────────────────
+    // ── PDF → Images PNG via Puppeteer (une image par page) ─────────────
     if (originalExt === 'pdf' && targetFormat === 'png') {
       const dataBuffer = fs.readFileSync(filePath)
       const uint8Array = new Uint8Array(dataBuffer)
       const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise
-      
-      // Pour le PDF→PNG on retourne juste le texte extrait en PNG via une approche simplifiée
-      // (rendu complet nécessiterait canvas/puppeteer)
-      const pdfDoc = await PDFDocument.create()
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-      
-      // On crée d'abord un PDF propre puis on le convertit
-      const tempPdfFilename = `temp-${Date.now()}.pdf`
-      const tempPdfPath = path.join(uploadDir, tempPdfFilename)
-      
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum)
-        const textContent = await page.getTextContent()
-        const lines = textContent.items.map((item: any) => item.str).filter((s: string) => s.trim())
-        
-        const pdfPage = pdfDoc.addPage([595, 842])
-        let y = 800
-        pdfPage.drawText(`Page ${pageNum}`, { x: 50, y, font: boldFont, size: 14, color: rgb(0.26, 0.22, 0.79) })
-        y -= 25
-        
-        for (const line of lines) {
-          if (y < 50) break
-          pdfPage.drawText(line.substring(0, 90), { x: 50, y, font, size: 10, color: rgb(0.1, 0.1, 0.1) })
-          y -= 14
-        }
+      const numPages = pdfDocument.numPages
+
+      // Encoder le PDF en base64 pour l'afficher dans le navigateur headless
+      const pdfBase64 = dataBuffer.toString('base64')
+      const browser = await launchBrowser()
+      const screenshots: string[] = []
+
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const pageHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+          <style>*{margin:0;padding:0} canvas{display:block}</style>
+          </head><body>
+          <canvas id="c"></canvas>
+          <script>
+            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const data=atob('${pdfBase64}');
+            const arr=new Uint8Array(data.length);
+            for(let i=0;i<data.length;i++) arr[i]=data.charCodeAt(i);
+            pdfjsLib.getDocument({data:arr}).promise.then(pdf=>pdf.getPage(${pageNum}).then(page=>{
+              const vp=page.getViewport({scale:2});
+              const canvas=document.getElementById('c');
+              canvas.width=vp.width; canvas.height=vp.height;
+              document.body.style.width=vp.width+'px';
+              document.body.style.height=vp.height+'px';
+              return page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+            })).then(()=>document.title='done');
+          </script></body></html>`
+
+        const page = await browser.newPage()
+        await page.setContent(pageHtml)
+        await page.waitForFunction(() => document.title === 'done', { timeout: 15000 })
+        const screenshotFilename = `converted-${Date.now()}-${baseName}-page${pageNum}.png`
+        const screenshotPath = path.join(uploadDir, screenshotFilename)
+        await page.screenshot({ path: screenshotPath as `${string}.png`, fullPage: false })
+        await page.close()
+        screenshots.push(screenshotFilename)
       }
-      
-      const pdfBytes = await pdfDoc.save()
-      // Retourner le PDF rendu (PNG nécessite canvas, on retourne PDF optimisé)
-      const pngOutputFilename = `converted-${Date.now()}-${baseName}.pdf`
-      const pngOutputPath = path.join(uploadDir, pngOutputFilename)
-      fs.writeFileSync(pngOutputPath, pdfBytes)
-      
-      return res.json({ 
-        success: true, 
-        filename: pngOutputFilename, 
-        originalFormat: originalExt, 
-        targetFormat: 'pdf',
-        message: `PDF optimisé (${pdfDocument.numPages} pages) - rendu PNG nécessite un navigateur`
+
+      await browser.close()
+
+      // Si une seule page, retourner directement le PNG
+      if (screenshots.length === 1) {
+        return res.json({ success: true, filename: screenshots[0], originalFormat: originalExt, targetFormat, message: `PDF converti en PNG (1 page)` })
+      }
+
+      // Plusieurs pages → créer un ZIP ou retourner la liste
+      return res.json({
+        success: true,
+        filename: screenshots[0],
+        files: screenshots,
+        originalFormat: originalExt,
+        targetFormat,
+        message: `${numPages} pages converties en PNG`
       })
     }
 
