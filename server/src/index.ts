@@ -13,12 +13,12 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import mammoth from 'mammoth'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx'
-import libreoffice from 'libreoffice-convert'
+import { exec } from 'child_process'
 import { promisify as promisifyUtil } from 'util'
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 
-const libreofficeConvert = promisifyUtil(libreoffice.convert)
+const execAsync = promisifyUtil(exec)
 
 async function launchBrowser() {
   // Windows local : utilise Chrome installé
@@ -874,12 +874,12 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
 
     console.log(`Conversion: ${originalExt} → ${targetFormat}`)
 
-    // ── Word (.docx) → PDF via LibreOffice ou Puppeteer ─────────────────
+    // ── Word (.docx) → PDF via LibreOffice CLI ──────────────────────────
     if ((originalExt === 'docx' || originalExt === 'doc') && targetFormat === 'pdf') {
       try {
-        const docBuffer = fs.readFileSync(filePath)
-        const pdfBuffer = await libreofficeConvert(docBuffer, '.pdf', undefined)
-        fs.writeFileSync(outputPath, pdfBuffer)
+        await execAsync(`libreoffice --headless --convert-to pdf --outdir "${uploadDir}" "${filePath}"`)
+        const loOutput = path.join(uploadDir, path.basename(filePath, path.extname(filePath)) + '.pdf')
+        fs.renameSync(loOutput, outputPath)
         return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme préservée)' })
       } catch (loErr: any) {
         console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
@@ -988,12 +988,12 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
       return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${pdfDocument.numPages} page(s) converties en Word` })
     }
 
-    // ── Excel → PDF via LibreOffice ou Puppeteer ────────────────────────
+    // ── Excel → PDF via LibreOffice CLI ─────────────────────────────────
     if ((originalExt === 'xlsx' || originalExt === 'xls') && targetFormat === 'pdf') {
       try {
-        const xlsxBuffer = fs.readFileSync(filePath)
-        const pdfBuffer = await libreofficeConvert(xlsxBuffer, '.pdf', undefined)
-        fs.writeFileSync(outputPath, pdfBuffer)
+        await execAsync(`libreoffice --headless --convert-to pdf --outdir "${uploadDir}" "${filePath}"`)
+        const loOutput = path.join(uploadDir, path.basename(filePath, path.extname(filePath)) + '.pdf')
+        fs.renameSync(loOutput, outputPath)
         const data = readExcel(req.file.filename)
         return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: `${data.length} lignes converties en PDF (mise en forme préservée)` })
       } catch (loErr: any) {
