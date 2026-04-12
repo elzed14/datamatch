@@ -50,10 +50,6 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       setStatus('✅ PDF extrait avec succès !')
       setExtractedData(result.previewData || [])
       setExtractedFilename(result.filename)
-      
-      setTimeout(() => {
-        onImportComplete(result)
-      }, 500)
 
     } catch (err: any) {
       console.error('Erreur PDF:', err)
@@ -166,10 +162,6 @@ export function SmartImport({ onImportComplete }: SmartImportProps) {
       setStatus('✅ OCR terminé avec succès !')
       setExtractedData(tableData)
       setExtractedFilename(result.filename)
-
-      setTimeout(() => {
-        onImportComplete(result)
-      }, 500)
 
     } catch (err: any) {
       console.error('Erreur OCR:', err)
