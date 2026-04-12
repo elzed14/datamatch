@@ -883,12 +883,39 @@ app.post('/api/convert', uploadAny.single('file'), async (req, res) => {
         return res.json({ success: true, filename: outputFilename, originalFormat: originalExt, targetFormat, message: 'Word converti en PDF (mise en forme préservée)' })
       } catch (loErr: any) {
         console.warn('LibreOffice indisponible, fallback Puppeteer:', loErr.message)
-        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath) })
+        const { value: htmlContent } = await mammoth.convertToHtml({ buffer: fs.readFileSync(filePath), styleMap: [
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Heading 3'] => h3:fresh",
+          "p[style-name='Title'] => h1.title:fresh",
+          "b => strong",
+          "i => em",
+          "u => u",
+          "strike => s",
+          "table => table",
+          "tr => tr",
+          "td => td"
+        ]})
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-          body{font-family:Arial,sans-serif;font-size:11px;margin:40px;line-height:1.6;color:#111}
-          h1,h2,h3{color:#4338CA} table{border-collapse:collapse;width:100%}
-          td,th{border:1px solid #ccc;padding:6px} th{background:#4338CA;color:#fff}
-        </style></head><body><h2 style="color:#4338CA">${baseName}</h2>${htmlContent}</body></html>`
+          @page { margin: 2.5cm; size: A4; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; margin: 0; padding: 0; }
+          h1 { font-size: 18pt; font-weight: bold; margin: 12pt 0 6pt 0; }
+          h1.title { font-size: 24pt; text-align: center; margin-bottom: 24pt; }
+          h2 { font-size: 16pt; font-weight: bold; margin: 10pt 0 4pt 0; }
+          h3 { font-size: 14pt; font-weight: bold; margin: 8pt 0 4pt 0; }
+          p { margin: 0 0 8pt 0; text-align: justify; }
+          strong { font-weight: bold; }
+          em { font-style: italic; }
+          u { text-decoration: underline; }
+          s { text-decoration: line-through; }
+          table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+          td, th { border: 1px solid #000; padding: 4pt 6pt; font-size: 10pt; }
+          th { background: #f0f0f0; font-weight: bold; }
+          ul, ol { margin: 4pt 0 8pt 20pt; padding: 0; }
+          li { margin-bottom: 4pt; }
+          img { max-width: 100%; height: auto; }
+        </style></head><body>${htmlContent}</body></html>`
         const browser = await launchBrowser()
         const page = await browser.newPage()
         await page.setContent(html, { waitUntil: 'networkidle0' })
