@@ -19,15 +19,30 @@ import puppeteer from 'puppeteer'
 
 const libreofficeConvert = promisifyUtil(libreoffice.convert)
 
-// Lance un browser puppeteer (Chrome local requis)
+// Détecte automatiquement le chemin Chrome selon l'OS
+function getChromePath(): string {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH
+  // Linux (Render, Railway, etc.)
+  const linuxPaths = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']
+  for (const p of linuxPaths) {
+    if (fs.existsSync(p)) return p
+  }
+  // Windows
+  return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+}
+
 async function launchBrowser() {
   return puppeteer.launch({
-    executablePath: (
-      process.env.CHROME_PATH ||
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-    ),
+    executablePath: getChromePath(),
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-zygote',
+      '--single-process'
+    ]
   })
 }
 
