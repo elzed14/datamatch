@@ -49,6 +49,7 @@ app.use(cors({
     'http://localhost:5173', 
     'http://localhost:3000',
     'https://client-axrjlrq2h-elzeds-projects.vercel.app',
+    'https://client-elzeds-projects.vercel.app',
     /\.vercel\.app$/
   ],
   credentials: true
