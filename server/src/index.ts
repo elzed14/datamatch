@@ -33,7 +33,7 @@ async function launchBrowser() {
   // Linux (Render) : utilise @sparticuz/chromium portable
   return puppeteer.launch({
     executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
+    headless: true,
     args: chromium.args
   })
 }
